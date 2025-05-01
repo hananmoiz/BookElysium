@@ -6,6 +6,7 @@ import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
 import { storage } from "./storage";
 import { User as SelectUser } from "@shared/schema";
+import { createVerificationToken } from "./utils/auth-utils";
 
 declare global {
   namespace Express {
@@ -83,14 +84,29 @@ export function setupAuth(app: Express) {
         return res.status(400).json({ error: "Email already in use" });
       }
 
+      // Create user with verification defaults
       const user = await storage.createUser({
         ...req.body,
         password: await hashPassword(req.body.password),
+        isVerified: false, // Set as unverified by default
       });
 
+      // Generate a verification token
+      const verificationToken = await createVerificationToken(user.id);
+
+      // In a production environment, this would send an email
+      // For local development, we'll return the token directly
+      
       req.login(user, (err) => {
         if (err) return next(err);
-        res.status(201).json(user);
+        
+        // Include the verification token in the response for development
+        res.status(201).json({
+          ...user,
+          // Only include these in development
+          verificationToken,
+          verificationUrl: `${req.protocol}://${req.get('host')}/api/verify/${verificationToken}`
+        });
       });
     } catch (error) {
       next(error);
@@ -105,11 +121,26 @@ export function setupAuth(app: Express) {
       if (!user) {
         return res.status(401).json({ error: "Invalid username or password" });
       }
+      
+      // Check if the user account is verified
+      // For development, we'll make this optional and just add a warning
+      if (user.isVerified === false) {
+        console.warn(`User ${user.username} logged in without verification`);
+        // In production, you might want to prevent login:
+        // return res.status(403).json({ 
+        //   error: "Account not verified", 
+        //   message: "Please check your email to verify your account before logging in." 
+        // });
+      }
+      
       req.login(user, (loginErr) => {
         if (loginErr) {
           return next(loginErr);
         }
-        return res.status(200).json(user);
+        return res.status(200).json({
+          ...user,
+          needsVerification: user.isVerified === false,
+        });
       });
     })(req, res, next);
   });

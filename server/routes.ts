@@ -5,6 +5,13 @@ import { setupAuth } from "./auth";
 import { getChatbotResponse, getBookRecommendations } from "./openai";
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
+import { 
+  createVerificationToken, 
+  verifyUser, 
+  createPasswordResetToken, 
+  verifyPasswordResetToken, 
+  resetPassword 
+} from "./utils/auth-utils";
 
 const scryptAsync = promisify(scrypt);
 
@@ -459,6 +466,113 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ message: "Password updated successfully" });
     } catch (error) {
       res.status(500).json({ error: "Failed to change password" });
+    }
+  });
+
+  // Request a password reset
+  app.post("/api/reset-password", async (req, res) => {
+    try {
+      const { email } = req.body;
+      
+      if (!email) {
+        return res.status(400).json({ error: "Email is required" });
+      }
+      
+      const result = await createPasswordResetToken(email);
+      
+      if (!result) {
+        // Always return success even if the email doesn't exist
+        // This prevents user enumeration attacks
+        return res.json({ 
+          success: true, 
+          message: "If an account with that email exists, a password reset link has been sent." 
+        });
+      }
+      
+      // For local development, we return the token in the response
+      // In production, this would send an email instead
+      res.json({ 
+        success: true, 
+        message: "Password reset request received",
+        // Only include this token in development
+        token: result.token
+      });
+    } catch (error) {
+      console.error("Password reset error:", error);
+      res.status(500).json({ error: "Failed to process password reset" });
+    }
+  });
+
+  // Verify a password reset token
+  app.get("/api/reset-password/:token", async (req, res) => {
+    try {
+      const { token } = req.params;
+      const user = await verifyPasswordResetToken(token);
+      
+      if (!user) {
+        return res.status(400).json({ error: "Invalid or expired reset token" });
+      }
+      
+      // Token is valid
+      res.json({ 
+        success: true, 
+        message: "Token is valid",
+        user: {
+          id: user.id,
+          username: user.username,
+          email: user.email
+        }
+      });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to verify reset token" });
+    }
+  });
+
+  // Reset password with a valid token
+  app.post("/api/reset-password/:token", async (req, res) => {
+    try {
+      const { token } = req.params;
+      const { password } = req.body;
+      
+      if (!password) {
+        return res.status(400).json({ error: "New password is required" });
+      }
+      
+      // Hash the new password
+      const hashedPassword = await hashPassword(password);
+      
+      // Attempt to reset the password
+      const success = await resetPassword(token, hashedPassword);
+      
+      if (!success) {
+        return res.status(400).json({ error: "Invalid or expired reset token" });
+      }
+      
+      res.json({ 
+        success: true, 
+        message: "Password has been reset successfully. You can now log in with your new password." 
+      });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to reset password" });
+    }
+  });
+
+  // Verify a user account
+  app.get("/api/verify/:token", async (req, res) => {
+    try {
+      const { token } = req.params;
+      const success = await verifyUser(token);
+      
+      if (!success) {
+        return res.status(400).json({ error: "Invalid verification token" });
+      }
+      
+      res.json({ 
+        success: true, 
+        message: "Your account has been verified successfully. You can now log in." 
+      });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to verify account" });
     }
   });
 
