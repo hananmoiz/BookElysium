@@ -21,6 +21,7 @@ import { insertUserSchema } from "@shared/schema";
 import Navbar from "@/components/shared/Navbar";
 import Footer from "@/components/shared/Footer";
 import ChatAssistant from "@/components/shared/ChatAssistant";
+import ForgotPassword from "@/components/auth/ForgotPassword";
 
 const loginSchema = z.object({
   username: z.string().min(1, "Username is required"),
@@ -41,6 +42,7 @@ type RegisterFormValues = z.infer<typeof registerSchema>;
 
 export default function AuthPage() {
   const [activeTab, setActiveTab] = useState<string>("login");
+  const [forgotPasswordOpen, setForgotPasswordOpen] = useState(false);
   const [location, navigate] = useLocation();
   const { user, loginMutation, registerMutation } = useAuth();
 
@@ -170,9 +172,13 @@ export default function AuthPage() {
                               Remember me
                             </label>
                           </div>
-                          <a href="#" className="text-sm text-primary hover:underline">
+                          <button 
+                            type="button"
+                            className="text-sm text-primary hover:underline"
+                            onClick={() => setForgotPasswordOpen(true)}
+                          >
                             Forgot password?
-                          </a>
+                          </button>
                         </div>
                         
                         <Button 

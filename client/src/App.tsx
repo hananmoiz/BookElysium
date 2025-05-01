@@ -24,9 +24,11 @@ function Router() {
       <Route path="/auth" component={AuthPage} />
       <Route path="/books/:id" component={BookDetailPage} />
       <Route path="/contact" component={ContactPage} />
+      <Route path="/verify/:token" component={VerifyAccount} />
+      <Route path="/reset-password/:token" component={ResetPassword} />
       <ProtectedRoute path="/saved" component={SavedBooksPage} />
       <ProtectedRoute path="/profile" component={ProfilePage} />
-      <Route component={NotFound} />
+      <Route path="/:rest*" component={NotFound} />
     </Switch>
   );
 }

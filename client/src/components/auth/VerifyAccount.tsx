@@ -21,17 +21,16 @@ export default function VerifyAccount() {
   const [verificationStatus, setVerificationStatus] = useState<"verifying" | "success" | "failed">("verifying");
   
   // Verify token
-  const { isLoading, error } = useQuery({
+  const { isLoading } = useQuery<unknown, Error, unknown, [string]>({
     queryKey: [`/api/verify/${token}`],
     queryFn: getQueryFn(),
     enabled: !!token,
     retry: false,
-    onSettled: (data, error) => {
-      if (error) {
-        setVerificationStatus("failed");
-      } else {
-        setVerificationStatus("success");
-      }
+    onSuccess: () => {
+      setVerificationStatus("success");
+    },
+    onError: () => {
+      setVerificationStatus("failed");
     },
   });
   

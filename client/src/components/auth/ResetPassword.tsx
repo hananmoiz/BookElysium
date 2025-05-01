@@ -45,17 +45,16 @@ export default function ResetPassword() {
   const [resetStatus, setResetStatus] = useState<"verifying" | "valid" | "invalid" | "success">("verifying");
 
   // Verify token
-  const { isLoading, error } = useQuery({
+  const { isLoading } = useQuery<unknown, Error, unknown, [string]>({
     queryKey: [`/api/reset-password/${token}`],
     queryFn: getQueryFn(),
     enabled: !!token,
     retry: false,
-    onSettled: (data, error) => {
-      if (error) {
-        setResetStatus("invalid");
-      } else {
-        setResetStatus("valid");
-      }
+    onSuccess: () => {
+      setResetStatus("valid");
+    },
+    onError: () => {
+      setResetStatus("invalid");
     },
   });
 
