@@ -45,16 +45,26 @@ export default function ExplorePage() {
   const urlOffset = params.get("offset");
   
   useEffect(() => {
-    if (urlQuery) {
+    let changed = false;
+    
+    if (urlQuery && urlQuery !== searchQuery) {
       setSearchQuery(urlQuery);
+      changed = true;
     }
-    if (urlCategory) {
+    if (urlCategory && urlCategory !== currentCategory) {
       setCurrentCategory(urlCategory);
+      changed = true;
     }
-    if (urlOffset) {
+    if (urlOffset && parseInt(urlOffset) !== offset) {
       setOffset(parseInt(urlOffset));
+      changed = true;
     }
-  }, [urlQuery, urlCategory, urlOffset]);
+    
+    // Only trigger the refetch if something changed
+    if (changed) {
+      setTimeout(() => refetchBooks(), 0);
+    }
+  }, [urlQuery, urlCategory, urlOffset, searchQuery, currentCategory, offset]);
 
   // Fetch categories
   const { data: categories, isLoading: categoriesLoading } = useQuery({
@@ -100,6 +110,8 @@ export default function ExplorePage() {
     setCurrentCategory(category);
     setSearchQuery("");
     setOffset(0); // Reset to first page when changing category
+    // We need to trigger refetch after setting the state
+    setTimeout(() => refetchBooks(), 0);
   };
 
   const handlePageChange = (newPage: number) => {
@@ -107,6 +119,8 @@ export default function ExplorePage() {
       // Calculate the new offset based on page number
       const newOffset = (newPage - 1) * limit;
       setOffset(newOffset);
+      // We need to trigger refetch after setting the state
+      setTimeout(() => refetchBooks(), 0);
     }
   };
 
