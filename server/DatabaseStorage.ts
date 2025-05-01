@@ -59,13 +59,56 @@ export class DatabaseStorage implements IStorage {
 
   // Books
   async getBook(id: number): Promise<Book | undefined> {
-    const [book] = await db.select().from(books).where(eq(books.id, id));
-    return book;
+    try {
+      const [book] = await db.select().from(books).where(eq(books.id, id));
+      
+      if (book) {
+        return book;
+      }
+      
+      return undefined;
+    } catch (error) {
+      console.error(`Error getting book by ID ${id}:`, error);
+      return undefined;
+    }
   }
 
   async getBookByOLID(olid: string): Promise<Book | undefined> {
-    const [book] = await db.select().from(books).where(eq(books.olid, olid));
-    return book;
+    try {
+      // First check if the book is in the database
+      const [book] = await db
+        .select()
+        .from(books)
+        .where(eq(books.olid, olid));
+      
+      if (book) {
+        return book;
+      }
+      
+      // If not found, try to fetch from Open Library
+      const { getBookByOLID } = await import('./openLibraryService');
+      const openLibraryBook = await getBookByOLID(olid);
+      
+      if (openLibraryBook) {
+        // The book was fetched and added to the database, so now we can retrieve it
+        const [newBook] = await db
+          .select()
+          .from(books)
+          .where(eq(books.olid, olid));
+        
+        return newBook;
+      }
+      
+      return undefined;
+    } catch (error) {
+      console.error(`Error getting book by OLID ${olid}:`, error);
+      const [book] = await db
+        .select()
+        .from(books)
+        .where(eq(books.olid, olid));
+      
+      return book;
+    }
   }
 
   async getBooks(limit: number = 50, offset: number = 0): Promise<Book[]> {
@@ -77,28 +120,110 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getBooksByCategory(category: string, limit: number = 10, offset: number = 0): Promise<Book[]> {
-    return await db
-      .select()
-      .from(books)
-      .where(eq(books.genre, category))
-      .limit(limit)
-      .offset(offset);
+    try {
+      // First try to get books from our database
+      const localBooks = await db
+        .select()
+        .from(books)
+        .where(eq(books.genre, category))
+        .limit(limit)
+        .offset(offset);
+      
+      // If we have enough books, return them
+      if (localBooks.length >= limit) {
+        return localBooks;
+      }
+      
+      // Otherwise, fetch more books from Open Library
+      const { getBooksByCategory } = await import('./openLibraryService');
+      const openLibraryBooks = await getBooksByCategory(category, limit - localBooks.length, offset);
+      
+      // Combine and return
+      return [...localBooks, ...openLibraryBooks.slice(0, limit - localBooks.length)];
+    } catch (error) {
+      console.error(`Error getting books by category ${category}:`, error);
+      // Fallback to just return what we have in the database
+      return await db
+        .select()
+        .from(books)
+        .where(eq(books.genre, category))
+        .limit(limit)
+        .offset(offset);
+    }
   }
 
   async getTrendingBooks(limit: number = 10): Promise<Book[]> {
-    return await db
-      .select()
-      .from(books)
-      .orderBy(desc(books.rating))
-      .limit(limit);
+    try {
+      // First try to get books from our database
+      const localBooks = await db
+        .select()
+        .from(books)
+        .orderBy(desc(books.rating))
+        .limit(limit);
+      
+      // If we have enough books with ratings, return them
+      if (localBooks.length >= limit && localBooks[0].rating > 0) {
+        return localBooks;
+      }
+      
+      // Otherwise, fetch trending books from Open Library
+      const { getTrendingBooks } = await import('./openLibraryService');
+      const openLibraryBooks = await getTrendingBooks(limit);
+      
+      // Combine and return
+      const combinedBooks = [...localBooks, ...openLibraryBooks];
+      // Remove duplicates by OLID
+      const uniqueBooks = Array.from(
+        new Map(combinedBooks.map(book => [book.olid, book])).values()
+      );
+      
+      return uniqueBooks.slice(0, limit);
+    } catch (error) {
+      console.error(`Error getting trending books:`, error);
+      // Fallback to just return what we have in the database
+      return await db
+        .select()
+        .from(books)
+        .orderBy(desc(books.rating))
+        .limit(limit);
+    }
   }
 
   async getMostPurchasedBooks(limit: number = 10): Promise<Book[]> {
-    return await db
-      .select()
-      .from(books)
-      .orderBy(desc(books.ratingCount))
-      .limit(limit);
+    try {
+      // First try to get books from our database
+      const localBooks = await db
+        .select()
+        .from(books)
+        .orderBy(desc(books.ratingCount))
+        .limit(limit);
+      
+      // If we have enough books with ratings, return them
+      if (localBooks.length >= limit && localBooks[0].ratingCount > 0) {
+        return localBooks;
+      }
+      
+      // If we don't have enough rated books, we'll query Open Library for popular books
+      // We'll use a predefined search for "bestsellers" sorted by popularity
+      const { searchOpenLibrary } = await import('./openLibraryService');
+      const openLibraryBooks = await searchOpenLibrary('bestsellers', limit);
+      
+      // Combine results and remove duplicates
+      const combinedBooks = [...localBooks, ...openLibraryBooks];
+      const uniqueBooks = Array.from(
+        new Map(combinedBooks.map(book => [book.olid, book])).values()
+      );
+      
+      return uniqueBooks.slice(0, limit);
+    } catch (error) {
+      console.error(`Error getting most purchased books:`, error);
+      // Fallback to the database
+      return await db
+        .select()
+        .from(books)
+        .orderBy(desc(books.ratingCount))
+        .limit(limit);
+    }
   }
 
   async createBook(book: InsertBook): Promise<Book> {
@@ -107,14 +232,47 @@ export class DatabaseStorage implements IStorage {
   }
 
   async searchBooks(query: string, limit: number = 20, offset: number = 0): Promise<Book[]> {
-    return await db
-      .select()
-      .from(books)
-      .where(
-        sql`${books.title} ILIKE ${'%' + query + '%'} OR ${books.author} ILIKE ${'%' + query + '%'}`
-      )
-      .limit(limit)
-      .offset(offset);
+    try {
+      // First search our local database
+      const localBooks = await db
+        .select()
+        .from(books)
+        .where(
+          sql`${books.title} ILIKE ${'%' + query + '%'} OR ${books.author} ILIKE ${'%' + query + '%'}`
+        )
+        .limit(limit)
+        .offset(offset);
+      
+      // If we have enough local results, return them
+      if (localBooks.length >= limit) {
+        return localBooks;
+      }
+      
+      // Otherwise, search Open Library API
+      const { searchOpenLibrary } = await import('./openLibraryService');
+      const openLibraryBooks = await searchOpenLibrary(
+        query, 
+        limit - localBooks.length, 
+        offset + localBooks.length
+      );
+      
+      // Combine results, filtering out duplicates by olid
+      const seenOlids = new Set(localBooks.map(book => book.olid));
+      const filteredOpenLibraryBooks = openLibraryBooks.filter(book => !seenOlids.has(book.olid));
+      
+      return [...localBooks, ...filteredOpenLibraryBooks].slice(0, limit);
+    } catch (error) {
+      console.error(`Error searching books for "${query}":`, error);
+      // Fall back to local database
+      return await db
+        .select()
+        .from(books)
+        .where(
+          sql`${books.title} ILIKE ${'%' + query + '%'} OR ${books.author} ILIKE ${'%' + query + '%'}`
+        )
+        .limit(limit)
+        .offset(offset);
+    }
   }
 
   // Saved books
