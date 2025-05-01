@@ -52,8 +52,17 @@ export default function CategoryCard({ category, className }: CategoryCardProps)
 
   const handleCategoryClick = (e: React.MouseEvent) => {
     e.preventDefault();
+    // Log information for debugging
+    console.log(`Clicked on category: ${name}`);
+    
     // Navigate to explore page with this category
-    window.location.href = `/explore?category=${encodeURIComponent(name)}`;
+    const url = `/explore?category=${encodeURIComponent(name)}`;
+    console.log(`Navigating to: ${url}`);
+    
+    // Use setTimeout to ensure we don't cut off console logs
+    setTimeout(() => {
+      window.location.href = url;
+    }, 100);
   };
 
   return (

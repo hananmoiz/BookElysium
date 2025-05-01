@@ -153,7 +153,7 @@ export default function BookDetail({ bookId }: BookDetailProps) {
       <Button
         variant="ghost"
         className="flex items-center text-muted-foreground hover:text-foreground"
-        onClick={() => setLocation("/explore")}
+        onClick={() => window.location.href = "/explore"}
       >
         <ArrowLeft className="h-4 w-4 mr-2" />
         Back to books

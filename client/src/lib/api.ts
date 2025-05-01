@@ -31,8 +31,19 @@ export async function fetchBooks(limit = 20, offset = 0): Promise<PaginatedRespo
 }
 
 export async function fetchBooksByCategory(category: string, limit = 10, offset = 0): Promise<PaginatedResponse<Book>> {
-  const response = await apiRequest("GET", `/api/books/category/${category}?limit=${limit}&offset=${offset}`);
-  return response.json();
+  console.log(`Fetching books for category: ${category}, limit: ${limit}, offset: ${offset}`);
+  const url = `/api/books/category/${encodeURIComponent(category)}?limit=${limit}&offset=${offset}`;
+  console.log(`API URL: ${url}`);
+  
+  try {
+    const response = await apiRequest("GET", url);
+    const data = await response.json();
+    console.log("Category API response:", data);
+    return data;
+  } catch (error) {
+    console.error("Error fetching books by category:", error);
+    throw error;
+  }
 }
 
 export async function fetchTrendingBooks(limit = 10): Promise<Book[]> {

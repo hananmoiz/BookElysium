@@ -83,12 +83,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/books/category/:category", async (req, res) => {
     try {
       const { category } = req.params;
+      console.log(`Received request for category: "${category}"`);
+      
       const limit = req.query.limit ? parseInt(req.query.limit as string) : 10;
       const offset = req.query.offset ? parseInt(req.query.offset as string) : 0;
+      
+      console.log(`Fetching books for category: "${category}" with limit: ${limit}, offset: ${offset}`);
       const books = await storage.getBooksByCategory(category, limit, offset);
+      console.log(`Found ${books.length} books for category "${category}"`);
       
       // Get total count for pagination
       const count = await storage.getBooksByCategoryCount(category);
+      console.log(`Total books in category "${category}": ${count}`);
       
       // Calculate pagination info
       const totalPages = Math.ceil(count / limit);
@@ -96,7 +102,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const hasNextPage = currentPage < totalPages;
       const hasPrevPage = currentPage > 1;
       
-      res.json({
+      const response = {
         books,
         pagination: {
           totalBooks: count,
@@ -109,8 +115,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
           nextPageOffset: hasNextPage ? offset + limit : null,
           prevPageOffset: hasPrevPage ? Math.max(0, offset - limit) : null
         }
+      };
+      
+      console.log(`Sending response for category "${category}" with pagination:`, {
+        totalBooks: count,
+        totalPages,
+        currentPage,
+        limit,
+        offset,
+        hasNextPage,
+        hasPrevPage
       });
+      
+      res.json(response);
     } catch (error) {
+      console.error(`Error fetching books for category:`, error);
       res.status(500).json({ error: "Failed to fetch books for category" });
     }
   });
