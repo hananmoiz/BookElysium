@@ -46,8 +46,8 @@ export default function BookDetail({ book, isLoading = false }: BookDetailProps)
   const [isSaving, setIsSaving] = useState(false);
   const [isRating, setIsRating] = useState(false);
   const [isBookSaved, setIsBookSaved] = useState(isSaved);
-  const [currentRating, setCurrentRating] = useState(rating);
-  const [currentRatingCount, setCurrentRatingCount] = useState(ratingCount);
+  const [currentRating, setCurrentRating] = useState(rating || null);
+  const [currentRatingCount, setCurrentRatingCount] = useState(ratingCount || 0);
   const [hoveredRating, setHoveredRating] = useState(0);
 
   // Fallback cover image
@@ -140,9 +140,9 @@ export default function BookDetail({ book, isLoading = false }: BookDetailProps)
               className={`h-6 w-6 ${
                 hoveredRating >= value 
                   ? "fill-accent text-accent" 
-                  : value <= currentRating 
+                  : (currentRating && value <= currentRating)
                   ? "fill-accent text-accent" 
-                  : value - 0.5 <= currentRating 
+                  : (currentRating && value - 0.5 <= currentRating)
                   ? "fill-accent text-accent" 
                   : "text-gray-300"
               }`} 
@@ -216,7 +216,7 @@ export default function BookDetail({ book, isLoading = false }: BookDetailProps)
               {renderRatingStars()}
             </div>
             <span className="text-sm text-muted-foreground">
-              {currentRating.toFixed(1)} ({currentRatingCount} ratings)
+              {currentRating ? `${currentRating.toFixed(1)} (${currentRatingCount || 0} ratings)` : 'No ratings yet'}
             </span>
           </div>
           
