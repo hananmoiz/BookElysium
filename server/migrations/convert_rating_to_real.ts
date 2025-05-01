@@ -1,4 +1,4 @@
-import { db } from "../db";
+import { db } from "../db.js";
 
 /**
  * Migration to convert book ratings from INTEGER to REAL
@@ -20,8 +20,9 @@ export async function convertRatingToReal() {
   }
 }
 
-// If this file is executed directly (not imported)
-if (require.main === module) {
+// Run this migration if executed directly
+// This is compatible with ES modules
+if (import.meta.url === import.meta.resolve('./convert_rating_to_real.ts')) {
   convertRatingToReal()
     .then(() => {
       console.log("Migration completed successfully.");

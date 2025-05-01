@@ -1,4 +1,4 @@
-import { convertRatingToReal } from "./convert_rating_to_real";
+import { convertRatingToReal } from "./convert_rating_to_real.js";
 
 /**
  * Run all migrations in sequence
