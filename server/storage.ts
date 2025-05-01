@@ -52,6 +52,7 @@ export interface IStorage {
   
   // Ratings
   getUserRating(userId: number, bookId: number): Promise<UserRating | undefined>;
+  getUserRatings(userId: number): Promise<Array<UserRating & {book?: Book}>>;
   createOrUpdateUserRating(rating: InsertUserRating): Promise<UserRating>;
   
   // Categories

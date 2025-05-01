@@ -353,7 +353,80 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const books = await storage.getRecommendedBooks(req.user.id, limit);
       res.json(books);
     } catch (error) {
+      console.error("Error in /api/recommendations:", error);
       res.status(500).json({ error: "Failed to fetch recommendations" });
+    }
+  });
+  
+  // AI-powered book recommendations using OpenAI
+  app.post("/api/ai-recommendations", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ error: "You must be logged in to get AI recommendations" });
+    }
+    
+    try {
+      const { preferences, previouslyRead = [] } = req.body;
+      
+      if (!preferences) {
+        return res.status(400).json({ error: "Preferences are required" });
+      }
+      
+      // Generate user profile for more accurate recommendations
+      let userProfile = preferences;
+      
+      // Add information about user's reading history if available
+      if (req.user) {
+        // Get user's saved and rated books for context
+        const [savedBooks, userRatings] = await Promise.all([
+          storage.getSavedBooks(req.user.id),
+          storage.getUserRatings(req.user.id)
+        ]);
+        
+        // Add user's favorite genres from their saved books
+        const genres = savedBooks
+          .map(book => book.genre)
+          .filter(genre => genre)
+          .filter((genre, index, self) => self.indexOf(genre) === index); // Unique genres
+        
+        if (genres.length > 0) {
+          userProfile += ` The user enjoys these genres: ${genres.join(', ')}.`;
+        }
+        
+        // Add information about highly rated books
+        const highlyRatedBooks = userRatings
+          .filter(rating => rating.rating >= 4)
+          .map(rating => rating.book)
+          .filter(book => book);
+        
+        if (highlyRatedBooks.length > 0) {
+          const topRatedTitles = highlyRatedBooks
+            .slice(0, 3)
+            .map(book => `"${book.title}" by ${book.author}`)
+            .join(', ');
+            
+          userProfile += ` The user highly rates these books: ${topRatedTitles}.`;
+        }
+        
+        // Add books user has already read to avoid recommending them
+        const readBooks = [...new Set([
+          ...previouslyRead,
+          ...savedBooks.map(book => `"${book.title}" by ${book.author}`),
+          ...highlyRatedBooks.map(book => `"${book.title}" by ${book.author}`)
+        ])];
+        
+        const { recommendations } = await getBookRecommendations(userProfile, readBooks);
+        return res.json({ recommendations });
+      } else {
+        // Fallback if user data isn't available
+        const { recommendations } = await getBookRecommendations(preferences, previouslyRead);
+        return res.json({ recommendations });
+      }
+    } catch (error) {
+      console.error("Error in /api/ai-recommendations:", error);
+      res.status(500).json({ 
+        error: "Failed to generate AI recommendations",
+        message: error.message || "An unexpected error occurred"
+      });
     }
   });
 
@@ -378,25 +451,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get AI book recommendations
-  app.post("/api/ai-recommendations", async (req, res) => {
-    try {
-      const { preferences, previouslyRead } = req.body;
-      
-      if (!preferences || typeof preferences !== "string") {
-        return res.status(400).json({ error: "Preferences are required" });
-      }
-      
-      const recommendations = await getBookRecommendations(
-        preferences,
-        previouslyRead || []
-      );
-      
-      res.json(recommendations);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to get AI recommendations" });
-    }
-  });
+
 
   // Update user profile
   app.patch("/api/user/profile", async (req, res) => {

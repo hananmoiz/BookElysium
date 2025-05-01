@@ -476,60 +476,167 @@ export class DatabaseStorage implements IStorage {
     return newCategory;
   }
 
-  // Recommendations
+  // Advanced Recommendations based on user behavior
   async getRecommendedBooks(userId: number, limit: number = 10): Promise<Book[]> {
-    // Get books this user rated highly
-    const userRatedBooks = await db
-      .select({
-        bookId: userRatings.bookId,
-        rating: userRatings.rating
-      })
-      .from(userRatings)
-      .where(eq(userRatings.userId, userId))
-      .orderBy(desc(userRatings.rating))
-      .limit(5);
-    
-    if (userRatedBooks.length === 0) {
-      // If no ratings, return trending books
+    try {
+      // Collect user's reading history and preferences
+      const [
+        userRatedBooks,
+        userSavedBooks,
+        userCommentedBooks
+      ] = await Promise.all([
+        // Books the user has rated
+        db.select({
+          bookId: userRatings.bookId,
+          rating: userRatings.rating
+        })
+        .from(userRatings)
+        .where(eq(userRatings.userId, userId))
+        .orderBy(desc(userRatings.rating)),
+        
+        // Books the user has saved
+        db.select({
+          bookId: savedBooks.bookId
+        })
+        .from(savedBooks)
+        .where(eq(savedBooks.userId, userId)),
+        
+        // Books the user has commented on
+        db.select({
+          bookId: bookComments.bookId
+        })
+        .from(bookComments)
+        .where(eq(bookComments.userId, userId))
+      ]);
+      
+      // If user has no interaction history, return trending books
+      if (userRatedBooks.length === 0 && userSavedBooks.length === 0 && userCommentedBooks.length === 0) {
+        console.log(`User ${userId} has no interaction history, returning trending books`);
+        return this.getTrendingBooks(limit);
+      }
+      
+      // Collect all book IDs the user has interacted with
+      const interactedBookIds = new Set([
+        ...userRatedBooks.map(b => b.bookId),
+        ...userSavedBooks.map(b => b.bookId),
+        ...userCommentedBooks.map(b => b.bookId)
+      ]);
+      
+      // Highly rated books (4-5 stars) have higher weight in recommendations
+      const highlyRatedBookIds = userRatedBooks
+        .filter(b => b.rating >= 4)
+        .map(b => b.bookId);
+      
+      // Get details of all books user has interacted with
+      const interactedBooks = await db
+        .select()
+        .from(books)
+        .where(sql`${books.id} IN (${Array.from(interactedBookIds).join(',')})`);
+      
+      if (interactedBooks.length === 0) {
+        console.log(`Could not find any interacted books for user ${userId}, returning trending books`);
+        return this.getTrendingBooks(limit);
+      }
+      
+      // Analyze user's favorite genres
+      const genreFrequency: Record<string, number> = {};
+      interactedBooks.forEach(book => {
+        if (book.genre) {
+          // Give extra weight to genres from highly rated books
+          const weight = highlyRatedBookIds.includes(book.id) ? 2 : 1;
+          genreFrequency[book.genre] = (genreFrequency[book.genre] || 0) + weight;
+        }
+      });
+      
+      // Analyze user's favorite authors
+      const authorFrequency: Record<string, number> = {};
+      interactedBooks.forEach(book => {
+        if (book.author) {
+          // Give extra weight to authors from highly rated books
+          const weight = highlyRatedBookIds.includes(book.id) ? 2 : 1;
+          authorFrequency[book.author] = (authorFrequency[book.author] || 0) + weight;
+        }
+      });
+      
+      // Get top 3 genres and top 3 authors
+      const topGenres = Object.entries(genreFrequency)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 3)
+        .map(([genre]) => genre)
+        .filter(genre => genre); // Filter out empty genres
+        
+      const topAuthors = Object.entries(authorFrequency)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 3)
+        .map(([author]) => author)
+        .filter(author => author); // Filter out empty authors
+        
+      console.log(`User ${userId} top genres: ${topGenres.join(', ')}`);
+      console.log(`User ${userId} top authors: ${topAuthors.join(', ')}`);
+      
+      // If we couldn't identify preferences, return trending books
+      if (topGenres.length === 0 && topAuthors.length === 0) {
+        console.log(`Could not identify preferences for user ${userId}, returning trending books`);
+        return this.getTrendingBooks(limit);
+      }
+      
+      // Build query conditions based on user preferences
+      const conditions = [];
+      
+      // Add genre conditions
+      if (topGenres.length > 0) {
+        const genreConditions = topGenres.map(g => sql`${books.genre} = ${g}`);
+        conditions.push(sql`(${sql.join(genreConditions, sql` OR `)})`);
+      }
+      
+      // Add author conditions
+      if (topAuthors.length > 0) {
+        const authorConditions = topAuthors.map(a => sql`${books.author} = ${a}`);
+        conditions.push(sql`(${sql.join(authorConditions, sql` OR `)})`);
+      }
+      
+      // Convert interactedBookIds to array for filtering
+      const excludeBookIds = Array.from(interactedBookIds);
+      
+      // Get recommendations excluding books the user has already interacted with
+      let query = db
+        .select()
+        .from(books);
+        
+      // Add preference conditions to query
+      if (conditions.length > 0) {
+        query = query.where(sql`(${sql.join(conditions, sql` OR `)})`);
+      }
+      
+      // Exclude books user has already interacted with
+      if (excludeBookIds.length > 0) {
+        query = query.where(sql`${books.id} NOT IN (${excludeBookIds.join(',')})`);
+      }
+      
+      // Get recommendations
+      const recommendations = await query
+        .orderBy(desc(books.rating))
+        .limit(limit);
+      
+      // If not enough recommendations, supplement with trending books
+      if (recommendations.length < limit) {
+        console.log(`Only found ${recommendations.length} recommendations based on preferences, supplementing with trending books`);
+        
+        const existingIds = new Set(recommendations.map(b => b.id));
+        const additionalCount = limit - recommendations.length;
+        
+        const trendingBooks = await this.getTrendingBooks(limit * 2);
+        const filteredTrending = trendingBooks
+          .filter(book => !existingIds.has(book.id) && !interactedBookIds.has(book.id))
+          .slice(0, additionalCount);
+        
+        recommendations.push(...filteredTrending);
+      }
+      
+      return recommendations.length > 0 ? recommendations : this.getTrendingBooks(limit);
+    } catch (error) {
+      console.error("Error getting recommended books:", error);
       return this.getTrendingBooks(limit);
     }
-    
-    // Get genres from books the user liked
-    const likedBookIds = userRatedBooks
-      .filter(b => b.rating >= 4)
-      .map(b => b.bookId);
-    
-    if (likedBookIds.length === 0) {
-      // If no books rated highly, return trending books
-      return this.getTrendingBooks(limit);
-    }
-    
-    const likedBooks = await db
-      .select({
-        genre: books.genre
-      })
-      .from(books)
-      .where(sql`${books.id} IN (${likedBookIds.join(',')})`);
-    
-    const genres = likedBooks
-      .map(b => b.genre)
-      .filter((g): g is string => g !== null);
-    
-    if (genres.length === 0) {
-      // If no genres found, return trending books
-      return this.getTrendingBooks(limit);
-    }
-    
-    // Get recommendations based on genres
-    const genreConditions = genres.map(g => sql`${books.genre} = ${g}`);
-    
-    const recommendations = await db
-      .select()
-      .from(books)
-      .where(sql`(${sql.join(genreConditions, sql` OR `)})`)
-      .orderBy(desc(books.rating))
-      .limit(limit);
-    
-    return recommendations.length > 0 ? recommendations : this.getTrendingBooks(limit);
   }
 }
