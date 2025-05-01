@@ -123,14 +123,13 @@ export function setupAuth(app: Express) {
       }
       
       // Check if the user account is verified
-      // For development, we'll make this optional and just add a warning
+      // We'll enforce verification to ensure proper security
       if (user.isVerified === false) {
-        console.warn(`User ${user.username} logged in without verification`);
-        // In production, you might want to prevent login:
-        // return res.status(403).json({ 
-        //   error: "Account not verified", 
-        //   message: "Please check your email to verify your account before logging in." 
-        // });
+        console.warn(`User ${user.username} attempted to log in without verification`);
+        return res.status(403).json({ 
+          error: "Account not verified", 
+          message: "Please verify your account before logging in. Check your registration confirmation for verification instructions." 
+        });
       }
       
       req.login(user, (loginErr) => {

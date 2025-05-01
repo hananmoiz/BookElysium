@@ -43,6 +43,7 @@ type RegisterFormValues = z.infer<typeof registerSchema>;
 export default function AuthPage() {
   const [activeTab, setActiveTab] = useState<string>("login");
   const [forgotPasswordOpen, setForgotPasswordOpen] = useState(false);
+  const [verificationInfo, setVerificationInfo] = useState<{token: string, url: string} | null>(null);
   const [location, navigate] = useLocation();
   const { user, loginMutation, registerMutation } = useAuth();
 
@@ -83,8 +84,17 @@ export default function AuthPage() {
   const onRegisterSubmit = (values: RegisterFormValues) => {
     const { confirmPassword, ...registerData } = values;
     registerMutation.mutate(registerData, {
-      onSuccess: () => {
-        navigate("/");
+      onSuccess: (response) => {
+        // In development mode, show verification information
+        if (response.verificationToken) {
+          setVerificationInfo({
+            token: response.verificationToken,
+            url: `/verify/${response.verificationToken}`
+          });
+          setActiveTab("verification");
+        } else {
+          navigate("/");
+        }
       },
     });
   };
@@ -118,7 +128,11 @@ export default function AuthPage() {
                 <Tabs
                   defaultValue="login"
                   value={activeTab}
-                  onValueChange={setActiveTab}
+                  onValueChange={(val) => {
+                    if (val !== "verification" || verificationInfo) {
+                      setActiveTab(val);
+                    }
+                  }}
                   className="w-full"
                 >
                   <TabsList className="grid w-full grid-cols-2 mb-8">
@@ -238,6 +252,57 @@ export default function AuthPage() {
                         </button>
                       </p>
                     </div>
+                  </TabsContent>
+                  
+                  <TabsContent value="verification">
+                    {verificationInfo && (
+                      <div className="space-y-6">
+                        <div className="bg-green-50 border border-green-200 rounded-md p-4">
+                          <h3 className="text-lg font-medium text-green-800 flex items-center">
+                            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                            </svg>
+                            Account Created Successfully!
+                          </h3>
+                          <p className="mt-2 text-sm text-green-700">
+                            Your account has been created. To continue, please verify your email address.
+                          </p>
+                        </div>
+                        
+                        <div className="bg-blue-50 border border-blue-200 rounded-md p-4">
+                          <h3 className="text-md font-medium text-blue-800">Verification Required</h3>
+                          <p className="mt-2 text-sm text-blue-700">
+                            Check your email for a verification link, or use the verification details below (for development only):
+                          </p>
+                          <div className="mt-3 p-3 bg-white rounded border border-blue-200 font-mono text-sm text-blue-800 break-all">
+                            <div>
+                              <span className="font-bold">Token:</span> {verificationInfo.token}
+                            </div>
+                            <div className="mt-2">
+                              <span className="font-bold">Verification URL:</span> {window.location.origin}/verify/{verificationInfo.token}
+                            </div>
+                          </div>
+                        </div>
+                        
+                        <div className="flex space-x-3">
+                          <Button 
+                            type="button"
+                            className="flex-1" 
+                            variant="outline"
+                            onClick={() => setActiveTab("login")}
+                          >
+                            Go to Login
+                          </Button>
+                          <Button 
+                            type="button"
+                            className="flex-1"
+                            onClick={() => navigate(`/verify/${verificationInfo.token}`)}
+                          >
+                            Verify Now
+                          </Button>
+                        </div>
+                      </div>
+                    )}
                   </TabsContent>
                   
                   <TabsContent value="register">
