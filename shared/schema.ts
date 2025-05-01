@@ -1,4 +1,5 @@
 import { pgTable, text, serial, integer, boolean, timestamp } from "drizzle-orm/pg-core";
+import { relations } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -28,23 +29,23 @@ export const books = pgTable("books", {
 
 export const savedBooks = pgTable("saved_books", {
   id: serial("id").primaryKey(),
-  userId: integer("user_id").notNull(),
-  bookId: integer("book_id").notNull(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  bookId: integer("book_id").notNull().references(() => books.id),
   savedAt: timestamp("saved_at").defaultNow().notNull(),
 });
 
 export const bookComments = pgTable("book_comments", {
   id: serial("id").primaryKey(),
-  userId: integer("user_id").notNull(),
-  bookId: integer("book_id").notNull(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  bookId: integer("book_id").notNull().references(() => books.id),
   comment: text("comment").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
 export const userRatings = pgTable("user_ratings", {
   id: serial("id").primaryKey(),
-  userId: integer("user_id").notNull(),
-  bookId: integer("book_id").notNull(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  bookId: integer("book_id").notNull().references(() => books.id),
   rating: integer("rating").notNull(),
   ratedAt: timestamp("rated_at").defaultNow().notNull(),
 });
@@ -102,6 +103,52 @@ export type InsertBookComment = z.infer<typeof insertBookCommentSchema>;
 export type InsertUserRating = z.infer<typeof insertUserRatingSchema>;
 export type InsertCategory = z.infer<typeof insertCategorySchema>;
 export type LoginData = z.infer<typeof loginSchema>;
+
+// Define relations
+export const usersRelations = relations(users, ({ many }) => ({
+  savedBooks: many(savedBooks),
+  bookComments: many(bookComments),
+  userRatings: many(userRatings),
+}));
+
+export const booksRelations = relations(books, ({ many }) => ({
+  savedBooks: many(savedBooks),
+  bookComments: many(bookComments),
+  userRatings: many(userRatings),
+}));
+
+export const savedBooksRelations = relations(savedBooks, ({ one }) => ({
+  user: one(users, {
+    fields: [savedBooks.userId],
+    references: [users.id],
+  }),
+  book: one(books, {
+    fields: [savedBooks.bookId],
+    references: [books.id],
+  }),
+}));
+
+export const bookCommentsRelations = relations(bookComments, ({ one }) => ({
+  user: one(users, {
+    fields: [bookComments.userId],
+    references: [users.id],
+  }),
+  book: one(books, {
+    fields: [bookComments.bookId],
+    references: [books.id],
+  }),
+}));
+
+export const userRatingsRelations = relations(userRatings, ({ one }) => ({
+  user: one(users, {
+    fields: [userRatings.userId],
+    references: [users.id],
+  }),
+  book: one(books, {
+    fields: [userRatings.bookId],
+    references: [books.id],
+  }),
+}));
 
 export type User = typeof users.$inferSelect;
 export type Book = typeof books.$inferSelect;
