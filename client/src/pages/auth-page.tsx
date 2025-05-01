@@ -427,6 +427,12 @@ export default function AuthPage() {
       </div>
       
       <ChatAssistant />
+      
+      {/* Forgot Password Dialog */}
+      <ForgotPassword 
+        open={forgotPasswordOpen}
+        onOpenChange={setForgotPasswordOpen} 
+      />
     </>
   );
 }

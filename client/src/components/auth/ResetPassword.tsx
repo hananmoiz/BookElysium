@@ -45,18 +45,21 @@ export default function ResetPassword() {
   const [resetStatus, setResetStatus] = useState<"verifying" | "valid" | "invalid" | "success">("verifying");
 
   // Verify token
-  const { isLoading } = useQuery<unknown, Error, unknown, [string]>({
+  const { isLoading, isError, isSuccess } = useQuery<unknown, Error, unknown, [string]>({
     queryKey: [`/api/reset-password/${token}`],
-    queryFn: getQueryFn(),
+    queryFn: getQueryFn({ on401: "throw" }),
     enabled: !!token,
     retry: false,
-    onSuccess: () => {
-      setResetStatus("valid");
-    },
-    onError: () => {
-      setResetStatus("invalid");
-    },
   });
+  
+  // Handle query success/error
+  useEffect(() => {
+    if (isSuccess) {
+      setResetStatus("valid");
+    } else if (isError) {
+      setResetStatus("invalid");
+    }
+  }, [isSuccess, isError]);
 
   const resetForm = useForm<ResetPasswordFormValues>({
     resolver: zodResolver(resetPasswordSchema),
