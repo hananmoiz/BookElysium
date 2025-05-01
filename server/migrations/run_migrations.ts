@@ -1,4 +1,5 @@
 import { convertRatingToReal } from "./convert_rating_to_real.js";
+import { addVerificationFields } from "./add_verification_fields.js";
 
 /**
  * Run all migrations in sequence
@@ -9,6 +10,7 @@ async function runMigrations() {
     
     // Run all migrations in sequence
     await convertRatingToReal();
+    await addVerificationFields();
     
     console.log("All migrations completed successfully.");
   } catch (error) {
