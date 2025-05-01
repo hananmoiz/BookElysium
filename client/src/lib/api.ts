@@ -1,18 +1,36 @@
 import { Book, BookComment, Category, InsertBookComment } from "@shared/schema";
 import { apiRequest } from "./queryClient";
 
+// Pagination types
+export interface PaginationData {
+  totalBooks: number;
+  totalPages: number;
+  currentPage: number;
+  limit: number;
+  offset: number;
+  hasNextPage: boolean;
+  hasPrevPage: boolean;
+  nextPageOffset: number | null;
+  prevPageOffset: number | null;
+}
+
+export interface PaginatedResponse<T> {
+  books: T[];
+  pagination: PaginationData;
+}
+
 // Book related API functions
 export async function fetchCategories(): Promise<Category[]> {
   const response = await apiRequest("GET", "/api/categories");
   return response.json();
 }
 
-export async function fetchBooks(limit = 20, offset = 0): Promise<Book[]> {
+export async function fetchBooks(limit = 20, offset = 0): Promise<PaginatedResponse<Book>> {
   const response = await apiRequest("GET", `/api/books?limit=${limit}&offset=${offset}`);
   return response.json();
 }
 
-export async function fetchBooksByCategory(category: string, limit = 10, offset = 0): Promise<Book[]> {
+export async function fetchBooksByCategory(category: string, limit = 10, offset = 0): Promise<PaginatedResponse<Book>> {
   const response = await apiRequest("GET", `/api/books/category/${category}?limit=${limit}&offset=${offset}`);
   return response.json();
 }
@@ -32,7 +50,7 @@ export async function fetchRecommendedBooks(limit = 10): Promise<Book[]> {
   return response.json();
 }
 
-export async function searchBooks(query: string, limit = 20, offset = 0): Promise<Book[]> {
+export async function searchBooks(query: string, limit = 20, offset = 0): Promise<PaginatedResponse<Book>> {
   const response = await apiRequest("GET", `/api/books/search?q=${encodeURIComponent(query)}&limit=${limit}&offset=${offset}`);
   return response.json();
 }
