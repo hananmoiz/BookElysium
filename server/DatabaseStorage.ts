@@ -1,4 +1,4 @@
-import { eq, and, like, desc, asc, sql } from "drizzle-orm";
+import { eq, and, like, desc, asc, sql, inArray, notInArray } from "drizzle-orm";
 import { db } from "./db";
 import connectPg from "connect-pg-simple";
 import session from "express-session";
@@ -566,10 +566,18 @@ export class DatabaseStorage implements IStorage {
         .map(b => b.bookId);
       
       // Get details of all books user has interacted with
-      const interactedBooks = await db
-        .select()
-        .from(books)
-        .where(sql`${books.id} IN (${Array.from(interactedBookIds).join(',')})`);
+      let interactedBooks: Book[] = [];
+      
+      if (interactedBookIds.size > 0) {
+        // Convert Set to Array and prepare placeholders
+        const idArray = Array.from(interactedBookIds);
+        
+        // For arrays of values with more than a few items, use IN operator with multiple parameters
+        interactedBooks = await db
+          .select()
+          .from(books)
+          .where(inArray(books.id, idArray));
+      }
       
       if (interactedBooks.length === 0) {
         console.log(`Could not find any interacted books for user ${userId}, returning trending books`);
@@ -648,7 +656,8 @@ export class DatabaseStorage implements IStorage {
       
       // Exclude books user has already interacted with
       if (excludeBookIds.length > 0) {
-        query = query.where(sql`${books.id} NOT IN (${excludeBookIds.join(',')})`);
+        // Use Drizzle's notInArray helper for safety
+        query = query.where(notInArray(books.id, excludeBookIds));
       }
       
       // Get recommendations
