@@ -187,7 +187,8 @@ async function processOpenLibraryResults(results: OpenLibraryBook[]): Promise<In
       
       // Calculate a rating between 3.0 and 5.0 based on these factors
       // More recent books with more editions get higher ratings
-      const calculatedRating = Math.round((3 + (1 - ageFactor) * 1.5 + editionFactor * 0.5) * 10) / 10;
+      // Store as a floating-point number with one decimal place precision
+      const calculatedRating = parseFloat((Math.round((3 + (1 - ageFactor) * 1.5 + editionFactor * 0.5) * 10) / 10).toFixed(1));
       
       // Calculate a realistic rating count
       // Books with more editions typically have more ratings
@@ -297,7 +298,8 @@ export async function getBookByOLID(olid: string): Promise<InsertBook | null> {
     const editionFactor = Math.min(editionCount, 30) / 30; // Cap at 30 revisions
     
     // Calculate a rating between 3.0 and 5.0 based on these factors
-    const calculatedRating = Math.round((3 + (1 - ageFactor) * 1.5 + editionFactor * 0.5) * 10) / 10;
+    // Store as a floating-point number with one decimal place precision
+    const calculatedRating = parseFloat((Math.round((3 + (1 - ageFactor) * 1.5 + editionFactor * 0.5) * 10) / 10).toFixed(1));
     
     // Calculate a realistic rating count
     const calculatedRatingCount = Math.round(editionCount * 5 + (1 - ageFactor) * 100);

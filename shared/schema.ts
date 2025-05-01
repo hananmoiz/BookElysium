@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, real } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
@@ -19,7 +19,7 @@ export const books = pgTable("books", {
   author: text("author").notNull(),
   description: text("description"),
   cover: text("cover"),
-  rating: integer("rating").default(0),
+  rating: real("rating").default(0),
   ratingCount: integer("rating_count").default(0),
   genre: text("genre"),
   isFree: boolean("is_free").default(false),
