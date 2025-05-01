@@ -33,30 +33,60 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const loginMutation = useMutation({
     mutationFn: async (credentials: LoginData) => {
       const res = await apiRequest("POST", "/api/login", credentials);
+      
+      // Handle verification error separately (403 status)
+      if (res.status === 403) {
+        const errorData = await res.json();
+        throw new Error(errorData.message || "Account not verified. Please verify your account before logging in.");
+      }
+      
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || "Login failed. Please check your credentials.");
+      }
+      
       return await res.json();
     },
     onSuccess: (user: SelectUser) => {
       queryClient.setQueryData(["/api/user"], user);
     },
     onError: (error: Error) => {
-      toast({
-        title: "Login failed",
-        description: error.message,
-        variant: "destructive",
-      });
+      // Check if this is a verification error
+      if (error.message.includes("verify")) {
+        toast({
+          title: "Verification Required",
+          description: error.message,
+          variant: "default",
+        });
+      } else {
+        toast({
+          title: "Login failed",
+          description: error.message,
+          variant: "destructive",
+        });
+      }
     },
   });
 
   const registerMutation = useMutation({
     mutationFn: async (credentials: InsertUser) => {
       const res = await apiRequest("POST", "/api/register", credentials);
+      
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || "Registration failed. Please try again.");
+      }
+      
       return await res.json();
     },
-    onSuccess: (user: SelectUser) => {
-      queryClient.setQueryData(["/api/user"], user);
+    onSuccess: (user: SelectUser & { verificationToken?: string }) => {
+      // Do NOT set the user data - force verification first
+      // queryClient.setQueryData(["/api/user"], user);
+      
       toast({
         title: "Registration successful",
-        description: "Welcome to Bookverse!",
+        description: "Please verify your account to continue.",
+        variant: "default",
       });
     },
     onError: (error: Error) => {
