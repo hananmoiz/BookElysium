@@ -37,13 +37,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get books with optional limit and offset
+  // Get books with pagination support
   app.get("/api/books", async (req, res) => {
     try {
       const limit = req.query.limit ? parseInt(req.query.limit as string) : 20;
       const offset = req.query.offset ? parseInt(req.query.offset as string) : 0;
       const books = await storage.getBooks(limit, offset);
-      res.json(books);
+      
+      // Get total count for pagination
+      const count = await storage.getBooksCount();
+      
+      // Calculate pagination info
+      const totalPages = Math.ceil(count / limit);
+      const currentPage = Math.floor(offset / limit) + 1;
+      const hasNextPage = currentPage < totalPages;
+      const hasPrevPage = currentPage > 1;
+      
+      res.json({
+        books,
+        pagination: {
+          totalBooks: count,
+          totalPages,
+          currentPage,
+          limit,
+          offset,
+          hasNextPage,
+          hasPrevPage,
+          nextPageOffset: hasNextPage ? offset + limit : null,
+          prevPageOffset: hasPrevPage ? Math.max(0, offset - limit) : null
+        }
+      });
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch books" });
     }
@@ -84,7 +107,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Search books
+  // Search books with pagination
   app.get("/api/books/search", async (req, res) => {
     try {
       const query = req.query.q as string;
@@ -96,7 +119,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const offset = req.query.offset ? parseInt(req.query.offset as string) : 0;
       
       const books = await storage.searchBooks(query, limit, offset);
-      res.json(books);
+      
+      // Get total count for pagination
+      const count = await storage.searchBooksCount(query);
+      
+      // Calculate pagination info
+      const totalPages = Math.ceil(count / limit);
+      const currentPage = Math.floor(offset / limit) + 1;
+      const hasNextPage = currentPage < totalPages;
+      const hasPrevPage = currentPage > 1;
+      
+      res.json({
+        books,
+        pagination: {
+          totalBooks: count,
+          totalPages,
+          currentPage,
+          limit,
+          offset,
+          hasNextPage,
+          hasPrevPage,
+          nextPageOffset: hasNextPage ? offset + limit : null,
+          prevPageOffset: hasPrevPage ? Math.max(0, offset - limit) : null
+        }
+      });
     } catch (error) {
       res.status(500).json({ error: "Failed to search books" });
     }
