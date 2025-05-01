@@ -13,6 +13,8 @@ import ProfilePage from "@/pages/profile-page";
 import ContactPage from "@/pages/contact-page";
 import { ProtectedRoute } from "./lib/protected-route";
 import { AuthProvider } from "@/hooks/use-auth";
+import VerifyAccount from "@/components/auth/VerifyAccount";
+import ResetPassword from "@/components/auth/ResetPassword";
 
 function Router() {
   return (
