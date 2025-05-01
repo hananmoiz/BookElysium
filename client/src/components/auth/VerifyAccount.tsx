@@ -23,7 +23,7 @@ export default function VerifyAccount() {
   // Verify token
   const { isLoading, isError, isSuccess } = useQuery<unknown, Error, unknown, [string]>({
     queryKey: [`/api/verify/${token}`],
-    queryFn: getQueryFn(),
+    queryFn: getQueryFn({ on401: "throw" }),
     enabled: !!token,
     retry: false,
   });
