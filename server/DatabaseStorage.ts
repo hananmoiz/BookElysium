@@ -118,6 +118,14 @@ export class DatabaseStorage implements IStorage {
       .limit(limit)
       .offset(offset);
   }
+  
+  async getBooksCount(): Promise<number> {
+    const [result] = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(books);
+    
+    return result?.count || 0;
+  }
 
   async getBooksByCategory(category: string, limit: number = 10, offset: number = 0): Promise<Book[]> {
     try {
@@ -149,6 +157,26 @@ export class DatabaseStorage implements IStorage {
         .where(eq(books.genre, category))
         .limit(limit)
         .offset(offset);
+    }
+  }
+  
+  async getBooksByCategoryCount(category: string): Promise<number> {
+    try {
+      // First get the count from our database
+      const [result] = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(books)
+        .where(eq(books.genre, category));
+      
+      const localCount = result?.count || 0;
+      
+      // For now, we'll return a reasonably large count to represent the potential
+      // open library books that could be fetched
+      // In a production app, we might query Open Library for the actual count
+      return Math.max(localCount, 100);
+    } catch (error) {
+      console.error(`Error getting books count for category ${category}:`, error);
+      return 0;
     }
   }
 
@@ -272,6 +300,28 @@ export class DatabaseStorage implements IStorage {
         )
         .limit(limit)
         .offset(offset);
+    }
+  }
+  
+  async searchBooksCount(query: string): Promise<number> {
+    try {
+      // First get the count from our database
+      const [result] = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(books)
+        .where(
+          sql`${books.title} ILIKE ${'%' + query + '%'} OR ${books.author} ILIKE ${'%' + query + '%'}`
+        );
+      
+      const localCount = result?.count || 0;
+      
+      // For most searches, there will be many more results in Open Library
+      // We'll return a conservative estimate to represent potential results
+      // In a production app, we might query Open Library API for actual count
+      return Math.max(localCount, 1000);
+    } catch (error) {
+      console.error(`Error getting search books count for "${query}":`, error);
+      return 0;
     }
   }
 

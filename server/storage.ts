@@ -31,11 +31,14 @@ export interface IStorage {
   getBook(id: number): Promise<Book | undefined>;
   getBookByOLID(olid: string): Promise<Book | undefined>;
   getBooks(limit?: number, offset?: number): Promise<Book[]>;
+  getBooksCount(): Promise<number>;
   getBooksByCategory(category: string, limit?: number, offset?: number): Promise<Book[]>;
+  getBooksByCategoryCount(category: string): Promise<number>;
   getTrendingBooks(limit?: number): Promise<Book[]>;
   getMostPurchasedBooks(limit?: number): Promise<Book[]>;
   createBook(book: InsertBook): Promise<Book>;
   searchBooks(query: string, limit?: number, offset?: number): Promise<Book[]>;
+  searchBooksCount(query: string): Promise<number>;
   
   // Saved books
   getSavedBooks(userId: number): Promise<Book[]>;
