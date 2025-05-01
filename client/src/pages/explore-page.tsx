@@ -101,13 +101,33 @@ export default function ExplorePage() {
       offset,
       limit
     ],
-    queryFn: () => {
-      if (searchQuery) {
-        return searchBooks(searchQuery, limit, offset);
-      } else if (currentCategory) {
-        return fetchBooksByCategory(currentCategory, limit, offset);
-      } else {
-        return fetchBooks(limit, offset);
+    queryFn: async () => {
+      console.log("Query function executed with params:", {
+        searchQuery,
+        currentCategory,
+        limit,
+        offset
+      });
+      
+      try {
+        let result;
+        if (searchQuery) {
+          console.log(`Executing search query for: "${searchQuery}"`);
+          result = await searchBooks(searchQuery, limit, offset);
+        } else if (currentCategory) {
+          console.log(`Executing category query for: "${currentCategory}"`);
+          result = await fetchBooksByCategory(currentCategory, limit, offset);
+          console.log(`Category query result:`, result);
+        } else {
+          console.log(`Fetching all books with limit: ${limit}, offset: ${offset}`);
+          result = await fetchBooks(limit, offset);
+        }
+        
+        console.log(`Query returned ${result.books.length} books`, result);
+        return result;
+      } catch (error) {
+        console.error("Error in query function:", error);
+        throw error;
       }
     }
   });

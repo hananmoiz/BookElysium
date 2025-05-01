@@ -129,32 +129,43 @@ export class DatabaseStorage implements IStorage {
 
   async getBooksByCategory(category: string, limit: number = 10, offset: number = 0): Promise<Book[]> {
     try {
-      // First try to get books from our database
+      console.log(`getBooksByCategory called with category: "${category}", limit: ${limit}, offset: ${offset}`);
+      
+      // First try to get books from our database - using case-insensitive comparison
+      // We'll use ilike to make this case-insensitive (common source of bugs)
       const localBooks = await db
         .select()
         .from(books)
-        .where(eq(books.genre, category))
+        .where(sql`LOWER(${books.genre}) = LOWER(${category})`) 
         .limit(limit)
         .offset(offset);
       
+      console.log(`Found ${localBooks.length} local books in database for category "${category}"`);
+      
       // If we have enough books, return them
       if (localBooks.length >= limit) {
+        console.log(`Returning ${localBooks.length} books from local database`);
         return localBooks;
       }
       
       // Otherwise, fetch more books from Open Library
+      console.log(`Need more books, fetching from Open Library for category "${category}"`);
       const { getBooksByCategory } = await import('./openLibraryService');
       const openLibraryBooks = await getBooksByCategory(category, limit - localBooks.length, offset);
+      console.log(`Retrieved ${openLibraryBooks.length} books from Open Library for category "${category}"`);
       
       // Combine and return
-      return [...localBooks, ...openLibraryBooks.slice(0, limit - localBooks.length)];
+      const result = [...localBooks, ...openLibraryBooks.slice(0, limit - localBooks.length)];
+      console.log(`Returning combined ${result.length} books for category "${category}"`);
+      return result;
     } catch (error) {
       console.error(`Error getting books by category ${category}:`, error);
       // Fallback to just return what we have in the database
+      console.log(`Using fallback query for category "${category}"`);
       return await db
         .select()
         .from(books)
-        .where(eq(books.genre, category))
+        .where(sql`LOWER(${books.genre}) = LOWER(${category})`)
         .limit(limit)
         .offset(offset);
     }
@@ -162,18 +173,23 @@ export class DatabaseStorage implements IStorage {
   
   async getBooksByCategoryCount(category: string): Promise<number> {
     try {
-      // First get the count from our database
+      console.log(`getBooksByCategoryCount called with category: "${category}"`);
+      
+      // First get the count from our database with case-insensitive comparison
       const [result] = await db
         .select({ count: sql<number>`count(*)` })
         .from(books)
-        .where(eq(books.genre, category));
+        .where(sql`LOWER(${books.genre}) = LOWER(${category})`);
       
       const localCount = result?.count || 0;
+      console.log(`Found ${localCount} books in database for category "${category}"`);
       
       // For now, we'll return a reasonably large count to represent the potential
       // open library books that could be fetched
       // In a production app, we might query Open Library for the actual count
-      return Math.max(localCount, 100);
+      const totalCount = Math.max(localCount, 100);
+      console.log(`Returning total count of ${totalCount} for category "${category}"`);
+      return totalCount;
     } catch (error) {
       console.error(`Error getting books count for category ${category}:`, error);
       return 0;
