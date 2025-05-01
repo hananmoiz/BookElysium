@@ -276,6 +276,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get a specific user's rating for a book
+  app.get("/api/books/:id/rating", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ error: "You must be logged in to get your rating" });
+    }
+    
+    try {
+      const bookId = parseInt(req.params.id);
+      const rating = await storage.getUserRating(req.user.id, bookId);
+      res.json(rating || null);
+    } catch (error) {
+      console.error('Error fetching book rating:', error);
+      res.status(500).json({ error: "Failed to get rating" });
+    }
+  });
+  
+  // Get all ratings for the current user with book details
+  app.get("/api/user/ratings", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ error: "You must be logged in to get your ratings" });
+    }
+    
+    try {
+      const ratings = await storage.getUserRatings(req.user.id);
+      res.json(ratings);
+    } catch (error) {
+      console.error("Error fetching user ratings:", error);
+      res.status(500).json({ error: "Failed to get user ratings" });
+    }
+  });
+
   // Get user's saved books
   app.get("/api/saved-books", async (req, res) => {
     if (!req.isAuthenticated()) {

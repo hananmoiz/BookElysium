@@ -166,6 +166,7 @@ export default function ProfilePage() {
                 <TabsList className="w-full justify-start mb-6">
                   <TabsTrigger value="profile">Profile</TabsTrigger>
                   <TabsTrigger value="security">Security</TabsTrigger>
+                  <TabsTrigger value="ratings">Your Ratings</TabsTrigger>
                 </TabsList>
                 
                 <TabsContent value="profile">
