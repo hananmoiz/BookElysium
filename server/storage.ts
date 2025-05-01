@@ -405,11 +405,21 @@ export class MemStorage implements IStorage {
     return Array.from(this.books.values())
       .slice(offset, offset + limit);
   }
+  
+  async getBooksCount(): Promise<number> {
+    return this.books.size;
+  }
 
   async getBooksByCategory(category: string, limit: number = 10, offset: number = 0): Promise<Book[]> {
     return Array.from(this.books.values())
       .filter(book => book.genre === category)
       .slice(offset, offset + limit);
+  }
+  
+  async getBooksByCategoryCount(category: string): Promise<number> {
+    return Array.from(this.books.values())
+      .filter(book => book.genre === category)
+      .length;
   }
 
   async getTrendingBooks(limit: number = 10): Promise<Book[]> {
@@ -446,6 +456,18 @@ export class MemStorage implements IStorage {
         (book.genre && book.genre.toLowerCase().includes(lowerQuery))
       )
       .slice(offset, offset + limit);
+  }
+  
+  async searchBooksCount(query: string): Promise<number> {
+    const lowerQuery = query.toLowerCase();
+    return Array.from(this.books.values())
+      .filter(book => 
+        book.title.toLowerCase().includes(lowerQuery) || 
+        book.author.toLowerCase().includes(lowerQuery) ||
+        (book.description && book.description.toLowerCase().includes(lowerQuery)) ||
+        (book.genre && book.genre.toLowerCase().includes(lowerQuery))
+      )
+      .length;
   }
 
   // Saved books

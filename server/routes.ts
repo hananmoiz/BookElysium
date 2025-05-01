@@ -72,14 +72,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get books by category
+  // Get books by category with pagination
   app.get("/api/books/category/:category", async (req, res) => {
     try {
       const { category } = req.params;
       const limit = req.query.limit ? parseInt(req.query.limit as string) : 10;
       const offset = req.query.offset ? parseInt(req.query.offset as string) : 0;
       const books = await storage.getBooksByCategory(category, limit, offset);
-      res.json(books);
+      
+      // Get total count for pagination
+      const count = await storage.getBooksByCategoryCount(category);
+      
+      // Calculate pagination info
+      const totalPages = Math.ceil(count / limit);
+      const currentPage = Math.floor(offset / limit) + 1;
+      const hasNextPage = currentPage < totalPages;
+      const hasPrevPage = currentPage > 1;
+      
+      res.json({
+        books,
+        pagination: {
+          totalBooks: count,
+          totalPages,
+          currentPage,
+          limit,
+          offset,
+          hasNextPage,
+          hasPrevPage,
+          nextPageOffset: hasNextPage ? offset + limit : null,
+          prevPageOffset: hasPrevPage ? Math.max(0, offset - limit) : null
+        }
+      });
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch books for category" });
     }
