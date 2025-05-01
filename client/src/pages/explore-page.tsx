@@ -45,26 +45,41 @@ export default function ExplorePage() {
   const urlOffset = params.get("offset");
   
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const queryParam = params.get("q");
+    const categoryParam = params.get("category");
+    const offsetParam = params.get("offset");
+    
     let changed = false;
     
-    if (urlQuery && urlQuery !== searchQuery) {
-      setSearchQuery(urlQuery);
+    if (queryParam && queryParam !== searchQuery) {
+      setSearchQuery(queryParam);
       changed = true;
     }
-    if (urlCategory && urlCategory !== currentCategory) {
-      setCurrentCategory(urlCategory);
+    
+    if (categoryParam && categoryParam !== currentCategory) {
+      setCurrentCategory(categoryParam);
+      changed = true;
+    } else if (!categoryParam && currentCategory) {
+      setCurrentCategory(null);
       changed = true;
     }
-    if (urlOffset && parseInt(urlOffset) !== offset) {
-      setOffset(parseInt(urlOffset));
+    
+    if (offsetParam && parseInt(offsetParam) !== offset) {
+      setOffset(parseInt(offsetParam));
       changed = true;
     }
     
     // Only trigger the refetch if something changed
     if (changed) {
+      console.log("URL params changed, refetching books with:", { 
+        category: categoryParam, 
+        query: queryParam, 
+        offset: offsetParam 
+      });
       setTimeout(() => refetchBooks(), 0);
     }
-  }, [urlQuery, urlCategory, urlOffset, searchQuery, currentCategory, offset]);
+  }, [location, searchQuery, currentCategory, offset]);
 
   // Fetch categories
   const { data: categories, isLoading: categoriesLoading } = useQuery({
@@ -107,11 +122,14 @@ export default function ExplorePage() {
   };
 
   const handleCategorySelect = (category: string | null) => {
-    setCurrentCategory(category);
-    setSearchQuery("");
-    setOffset(0); // Reset to first page when changing category
-    // We need to trigger refetch after setting the state
-    setTimeout(() => refetchBooks(), 0);
+    // Programmatically update the URL to include or remove the category parameter
+    if (category) {
+      // Use the browser's history API to update the URL with the category
+      window.location.href = `/explore?category=${encodeURIComponent(category)}`;
+    } else {
+      // Remove the category parameter from the URL
+      window.location.href = '/explore';
+    }
   };
 
   const handlePageChange = (newPage: number) => {

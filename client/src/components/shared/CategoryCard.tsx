@@ -50,17 +50,24 @@ export default function CategoryCard({ category, className }: CategoryCardProps)
     return { backgroundColor: bgColor };
   };
 
+  const handleCategoryClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    // Navigate to explore page with this category
+    window.location.href = `/explore?category=${encodeURIComponent(name)}`;
+  };
+
   return (
-    <Link href={`/explore?category=${encodeURIComponent(name)}`}>
-      <div className={cn("category-card hover:shadow-lg transition-all duration-300 rounded-lg overflow-hidden", className)}>
-        <div className="h-40 flex items-center justify-center" style={getBackgroundStyle()}>
-          {getIcon()}
-        </div>
-        <div className="p-4 text-center">
-          <h3 className="font-bold text-lg mb-1">{name}</h3>
-          <p className="text-sm text-muted-foreground">{bookCount || 0} books</p>
-        </div>
+    <div 
+      className={cn("category-card hover:shadow-lg transition-all duration-300 rounded-lg overflow-hidden cursor-pointer", className)}
+      onClick={handleCategoryClick}
+    >
+      <div className="h-40 flex items-center justify-center" style={getBackgroundStyle()}>
+        {getIcon()}
       </div>
-    </Link>
+      <div className="p-4 text-center">
+        <h3 className="font-bold text-lg mb-1">{name}</h3>
+        <p className="text-sm text-muted-foreground">{bookCount || 0} books</p>
+      </div>
+    </div>
   );
 }
