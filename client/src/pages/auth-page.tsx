@@ -15,7 +15,15 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { BookOpen, UserPlus, LogIn } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { BookOpen, UserPlus, LogIn, Check, AlertTriangle, Info } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { insertUserSchema } from "@shared/schema";
 import Navbar from "@/components/shared/Navbar";
@@ -43,6 +51,7 @@ type RegisterFormValues = z.infer<typeof registerSchema>;
 export default function AuthPage() {
   const [activeTab, setActiveTab] = useState<string>("login");
   const [forgotPasswordOpen, setForgotPasswordOpen] = useState(false);
+  const [verificationModalOpen, setVerificationModalOpen] = useState(false);
   const [verificationInfo, setVerificationInfo] = useState<{token: string, url: string} | null>(null);
   const [location, navigate] = useLocation();
   const { user, loginMutation, registerMutation } = useAuth();
@@ -91,7 +100,7 @@ export default function AuthPage() {
             token: response.verificationToken,
             url: `/verify/${response.verificationToken}`
           });
-          setActiveTab("verification");
+          setVerificationModalOpen(true);
         } else {
           navigate("/");
         }
@@ -135,10 +144,9 @@ export default function AuthPage() {
                   }}
                   className="w-full"
                 >
-                  <TabsList className="grid w-full grid-cols-3 mb-8">
+                  <TabsList className="grid w-full grid-cols-2 mb-8">
                     <TabsTrigger value="login">Sign In</TabsTrigger>
                     <TabsTrigger value="register">Register</TabsTrigger>
-                    <TabsTrigger value="verification" disabled={!verificationInfo}>Verify Account</TabsTrigger>
                   </TabsList>
                   
                   <TabsContent value="login">
@@ -534,6 +542,75 @@ export default function AuthPage() {
         open={forgotPasswordOpen}
         onOpenChange={setForgotPasswordOpen} 
       />
+      
+      {/* Verification Dialog */}
+      <Dialog open={verificationModalOpen} onOpenChange={setVerificationModalOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center">
+              <Check className="h-5 w-5 mr-2 text-green-600" />
+              Account Created Successfully
+            </DialogTitle>
+            <DialogDescription>
+              Your account has been created but needs verification before you can log in.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3">
+              <h3 className="text-sm font-medium text-yellow-800 flex items-center">
+                <AlertTriangle className="h-4 w-4 mr-2" />
+                Important: Verification Required
+              </h3>
+              <p className="mt-1 text-xs text-yellow-700">
+                <strong>You cannot log in</strong> until you complete verification.
+              </p>
+            </div>
+            
+            <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
+              <h3 className="text-sm font-medium text-blue-800 flex items-center">
+                <Info className="h-4 w-4 mr-2" />
+                Verification Instructions
+              </h3>
+              <div className="mt-1 text-xs text-blue-700">
+                <p>For this development environment:</p>
+                <p className="mt-1">Use the link below to verify your account:</p>
+              </div>
+              
+              {verificationInfo && (
+                <div className="mt-2 p-2 bg-white rounded border border-blue-200 font-mono text-xs text-blue-800 break-all">
+                  <a 
+                    href={`/verify/${verificationInfo.token}`} 
+                    className="text-blue-600 hover:underline break-all"
+                    onClick={() => {
+                      setVerificationModalOpen(false);
+                      navigate(`/verify/${verificationInfo.token}`);
+                    }}
+                  >
+                    {window.location.origin}/verify/{verificationInfo.token}
+                  </a>
+                </div>
+              )}
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button 
+              type="button"
+              className="bg-primary text-white"
+              onClick={() => {
+                if (verificationInfo) {
+                  setVerificationModalOpen(false);
+                  navigate(`/verify/${verificationInfo.token}`);
+                }
+              }}
+            >
+              <Check className="h-4 w-4 mr-2" />
+              Verify My Account Now
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
