@@ -17,10 +17,12 @@ import {
   fetchBooks, 
   fetchBooksByCategory, 
   fetchCategories, 
-  searchBooks 
+  searchBooks,
+  PaginationData
 } from "@/lib/api";
 import BookCard from "@/components/shared/BookCard";
 import CategoryCard from "@/components/shared/CategoryCard";
+import Pagination from "@/components/shared/Pagination";
 import Navbar from "@/components/shared/Navbar";
 import Footer from "@/components/shared/Footer";
 import ChatAssistant from "@/components/shared/ChatAssistant";
@@ -33,11 +35,14 @@ export default function ExplorePage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [currentCategory, setCurrentCategory] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
+  const [offset, setOffset] = useState(0);
+  const [limit] = useState(12); // Number of items per page
   
   // Parse query parameters from URL
   const params = new URLSearchParams(location.split('?')[1]);
   const urlQuery = params.get("q");
   const urlCategory = params.get("category");
+  const urlOffset = params.get("offset");
   
   useEffect(() => {
     if (urlQuery) {
@@ -46,7 +51,10 @@ export default function ExplorePage() {
     if (urlCategory) {
       setCurrentCategory(urlCategory);
     }
-  }, [urlQuery, urlCategory]);
+    if (urlOffset) {
+      setOffset(parseInt(urlOffset));
+    }
+  }, [urlQuery, urlCategory, urlOffset]);
 
   // Fetch categories
   const { data: categories, isLoading: categoriesLoading } = useQuery({
@@ -56,7 +64,7 @@ export default function ExplorePage() {
   
   // Fetch or search books based on state
   const {
-    data: books,
+    data: paginatedBooks,
     isLoading: booksLoading,
     error: booksError,
     refetch: refetchBooks
@@ -64,27 +72,42 @@ export default function ExplorePage() {
     queryKey: [
       searchQuery ? "/api/books/search" : currentCategory ? `/api/books/category/${currentCategory}` : "/api/books",
       searchQuery,
-      currentCategory
+      currentCategory,
+      offset,
+      limit
     ],
     queryFn: () => {
       if (searchQuery) {
-        return searchBooks(searchQuery);
+        return searchBooks(searchQuery, limit, offset);
       } else if (currentCategory) {
-        return fetchBooksByCategory(currentCategory);
+        return fetchBooksByCategory(currentCategory, limit, offset);
       } else {
-        return fetchBooks(50);
+        return fetchBooks(limit, offset);
       }
     }
   });
 
+  const books = paginatedBooks?.books || [];
+  const pagination = paginatedBooks?.pagination;
+
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
+    setOffset(0); // Reset to first page when searching
     refetchBooks();
   };
 
   const handleCategorySelect = (category: string | null) => {
     setCurrentCategory(category);
     setSearchQuery("");
+    setOffset(0); // Reset to first page when changing category
+  };
+
+  const handlePageChange = (newPage: number) => {
+    if (pagination) {
+      // Calculate the new offset based on page number
+      const newOffset = (newPage - 1) * limit;
+      setOffset(newOffset);
+    }
   };
 
   const renderBookCardSkeleton = () => (
@@ -208,15 +231,27 @@ export default function ExplorePage() {
                     <p>No books found. Try a different search term or category.</p>
                   </div>
                 ) : (
-                  <div className={`grid ${viewMode === "grid" ? "grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5" : "grid-cols-1"} gap-6`}>
-                    {books?.map((book) => (
-                      <BookCard 
-                        key={book.id} 
-                        book={book} 
-                        className={`${viewMode === "list" ? "w-full flex flex-row h-48" : "w-full"}`} 
+                  <>
+                    <div className={`grid ${viewMode === "grid" ? "grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5" : "grid-cols-1"} gap-6`}>
+                      {books?.map((book) => (
+                        <BookCard 
+                          key={book.id} 
+                          book={book} 
+                          className={`${viewMode === "list" ? "w-full flex flex-row h-48" : "w-full"}`} 
+                        />
+                      ))}
+                    </div>
+                    
+                    {pagination && (
+                      <Pagination 
+                        currentPage={pagination.currentPage}
+                        totalPages={pagination.totalPages}
+                        hasNextPage={pagination.hasNextPage}
+                        hasPrevPage={pagination.hasPrevPage}
+                        onPageChange={handlePageChange}
                       />
-                    ))}
-                  </div>
+                    )}
+                  </>
                 )}
               </TabsContent>
               
