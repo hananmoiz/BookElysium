@@ -135,9 +135,10 @@ export default function AuthPage() {
                   }}
                   className="w-full"
                 >
-                  <TabsList className="grid w-full grid-cols-2 mb-8">
+                  <TabsList className="grid w-full grid-cols-3 mb-8">
                     <TabsTrigger value="login">Sign In</TabsTrigger>
                     <TabsTrigger value="register">Register</TabsTrigger>
+                    <TabsTrigger value="verification" disabled={!verificationInfo}>Verify Account</TabsTrigger>
                   </TabsList>
                   
                   <TabsContent value="login">
@@ -255,7 +256,7 @@ export default function AuthPage() {
                   </TabsContent>
                   
                   <TabsContent value="verification">
-                    {verificationInfo && (
+                    {verificationInfo ? (
                       <div className="space-y-6">
                         <div className="bg-green-50 border border-green-200 rounded-md p-4">
                           <h3 className="text-lg font-medium text-green-800 flex items-center">
@@ -265,21 +266,40 @@ export default function AuthPage() {
                             Account Created Successfully!
                           </h3>
                           <p className="mt-2 text-sm text-green-700">
-                            Your account has been created. To continue, please verify your email address.
+                            Your account has been created but needs verification before you can log in.
+                          </p>
+                        </div>
+                        
+                        <div className="bg-yellow-50 border border-yellow-200 rounded-md p-4">
+                          <h3 className="text-md font-medium text-yellow-800 flex items-center">
+                            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                            </svg>
+                            Important: Account Not Yet Verified
+                          </h3>
+                          <p className="mt-2 text-sm text-yellow-700">
+                            <strong>You cannot log in</strong> until you complete verification.
                           </p>
                         </div>
                         
                         <div className="bg-blue-50 border border-blue-200 rounded-md p-4">
-                          <h3 className="text-md font-medium text-blue-800">Verification Required</h3>
-                          <p className="mt-2 text-sm text-blue-700">
-                            Check your email for a verification link, or use the verification details below (for development only):
-                          </p>
+                          <h3 className="text-md font-medium text-blue-800 flex items-center">
+                            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            How to Verify Your Account
+                          </h3>
+                          <div className="mt-2 text-sm text-blue-700">
+                            <p>In a production environment, we would send an email with a verification link.</p>
+                            <p className="mt-1">For this development environment, use the link below to verify your account:</p>
+                          </div>
+                          
                           <div className="mt-3 p-3 bg-white rounded border border-blue-200 font-mono text-sm text-blue-800 break-all">
-                            <div>
-                              <span className="font-bold">Token:</span> {verificationInfo.token}
-                            </div>
                             <div className="mt-2">
-                              <span className="font-bold">Verification URL:</span> {window.location.origin}/verify/{verificationInfo.token}
+                              <span className="font-bold">Verification URL:</span> 
+                              <a href={`/verify/${verificationInfo.token}`} className="text-blue-600 hover:underline break-all ml-2">
+                                {window.location.origin}/verify/{verificationInfo.token}
+                              </a>
                             </div>
                           </div>
                         </div>
@@ -287,20 +307,36 @@ export default function AuthPage() {
                         <div className="flex space-x-3">
                           <Button 
                             type="button"
-                            className="flex-1" 
-                            variant="outline"
-                            onClick={() => setActiveTab("login")}
-                          >
-                            Go to Login
-                          </Button>
-                          <Button 
-                            type="button"
-                            className="flex-1"
+                            className="flex-1 bg-green-600 hover:bg-green-700"
                             onClick={() => navigate(`/verify/${verificationInfo.token}`)}
                           >
-                            Verify Now
+                            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            Verify My Account Now
                           </Button>
                         </div>
+                      </div>
+                    ) : (
+                      <div className="space-y-6">
+                        <div className="bg-red-50 border border-red-200 rounded-md p-4">
+                          <h3 className="text-md font-medium text-red-800 flex items-center">
+                            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            No Verification Information
+                          </h3>
+                          <p className="mt-2 text-sm text-red-700">
+                            Please register for an account first to get verification details.
+                          </p>
+                        </div>
+                        <Button 
+                          type="button"
+                          className="w-full"
+                          onClick={() => setActiveTab("register")}
+                        >
+                          Go to Registration
+                        </Button>
                       </div>
                     )}
                   </TabsContent>

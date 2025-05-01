@@ -104,16 +104,14 @@ export function setupAuth(app: Express) {
       // In a production environment, this would send an email
       // For local development, we'll return the token directly
       
-      req.login(user, (err) => {
-        if (err) return next(err);
-        
-        // Include the verification token in the response for development
-        res.status(201).json({
-          ...user,
-          // Only include these in development
-          verificationToken,
-          verificationUrl: `${req.protocol}://${req.get('host')}/api/verify/${verificationToken}`
-        });
+      // Don't automatically log in users on registration - they need to verify first
+      // Include the verification token in the response for development
+      res.status(201).json({
+        ...user,
+        // Only include these in development
+        verificationToken,
+        verificationUrl: `${req.protocol}://${req.get('host')}/verify/${verificationToken}`,
+        message: "Account created successfully. Please verify your account to log in."
       });
     } catch (error) {
       next(error);
