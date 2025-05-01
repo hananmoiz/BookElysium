@@ -52,13 +52,13 @@ export default function CategoryCard({ category, className }: CategoryCardProps)
 
   return (
     <Link href={`/explore?category=${encodeURIComponent(name)}`}>
-      <div className={cn("category-card", className)}>
+      <div className={cn("category-card hover:shadow-lg transition-all duration-300 rounded-lg overflow-hidden", className)}>
         <div className="h-40 flex items-center justify-center" style={getBackgroundStyle()}>
           {getIcon()}
         </div>
         <div className="p-4 text-center">
           <h3 className="font-bold text-lg mb-1">{name}</h3>
-          <p className="text-sm text-muted-foreground">{bookCount} books</p>
+          <p className="text-sm text-muted-foreground">{bookCount || 0} books</p>
         </div>
       </div>
     </Link>

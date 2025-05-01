@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useState, useEffect } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
@@ -15,9 +15,10 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { Heart, BookOpen, Clock, Share2, ArrowLeft } from "lucide-react";
+import { Heart, BookOpen, Clock, Share2, ArrowLeft, Star, ThumbsUp } from "lucide-react";
 import { formatDate, calculateReadingTime, truncateText } from "@/lib/utils";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
+import { rateBook } from "@/lib/api";
 
 interface BookDetailProps {
   bookId: number;
@@ -152,7 +153,7 @@ export default function BookDetail({ bookId }: BookDetailProps) {
       <Button
         variant="ghost"
         className="flex items-center text-muted-foreground hover:text-foreground"
-        onClick={() => setLocation("/books")}
+        onClick={() => setLocation("/explore")}
       >
         <ArrowLeft className="h-4 w-4 mr-2" />
         Back to books
