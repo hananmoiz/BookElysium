@@ -15,6 +15,7 @@ import type {
 } from "@shared/schema";
 import session from "express-session";
 import createMemoryStore from "memorystore";
+import { DatabaseStorage } from "./DatabaseStorage";
 
 const MemoryStore = createMemoryStore(session);
 
@@ -654,4 +655,5 @@ export class MemStorage implements IStorage {
   }
 }
 
-export const storage = new MemStorage();
+// Use the DatabaseStorage instead of MemStorage for persistent storage
+export const storage = new DatabaseStorage();

@@ -3,6 +3,23 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth } from "./auth";
 import { getChatbotResponse, getBookRecommendations } from "./openai";
+import { scrypt, randomBytes, timingSafeEqual } from "crypto";
+import { promisify } from "util";
+
+const scryptAsync = promisify(scrypt);
+
+async function hashPassword(password: string) {
+  const salt = randomBytes(16).toString("hex");
+  const buf = (await scryptAsync(password, salt, 64)) as Buffer;
+  return `${buf.toString("hex")}.${salt}`;
+}
+
+async function comparePasswords(supplied: string, stored: string) {
+  const [hashed, salt] = stored.split(".");
+  const hashedBuf = Buffer.from(hashed, "hex");
+  const suppliedBuf = (await scryptAsync(supplied, salt, 64)) as Buffer;
+  return timingSafeEqual(hashedBuf, suppliedBuf);
+}
 import { insertBookCommentSchema, insertSavedBookSchema, insertUserRatingSchema } from "@shared/schema";
 import { z } from "zod";
 
@@ -353,8 +370,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Current password and new password are required" });
       }
       
-      // Import functions from auth.ts
-      const { comparePasswords, hashPassword } = await import("./auth");
+      // Use the local password functions
       
       // Verify current password
       const user = await storage.getUser(req.user.id);

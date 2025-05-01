@@ -30,13 +30,13 @@ async function comparePasswords(supplied: string, stored: string) {
 
 export function setupAuth(app: Express) {
   const sessionSettings: session.SessionOptions = {
-    secret: process.env.SESSION_SECRET || "bookverse-secret-key",
+    secret: process.env.SESSION_SECRET || "bookverse-secret",
     resave: false,
     saveUninitialized: false,
     store: storage.sessionStore,
     cookie: {
       secure: process.env.NODE_ENV === "production",
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 1 week
+      maxAge: 24 * 60 * 60 * 1000, // 24 hours
     }
   };
 
@@ -47,52 +47,50 @@ export function setupAuth(app: Express) {
 
   passport.use(
     new LocalStrategy(async (username, password, done) => {
-      const user = await storage.getUserByUsername(username);
-      if (!user || !(await comparePasswords(password, user.password))) {
-        return done(null, false);
-      } else {
-        return done(null, user);
+      try {
+        const user = await storage.getUserByUsername(username);
+        if (!user || !(await comparePasswords(password, user.password))) {
+          return done(null, false);
+        } else {
+          return done(null, user);
+        }
+      } catch (error) {
+        return done(error);
       }
     }),
   );
 
   passport.serializeUser((user, done) => done(null, user.id));
   passport.deserializeUser(async (id: number, done) => {
-    const user = await storage.getUser(id);
-    done(null, user);
+    try {
+      const user = await storage.getUser(id);
+      done(null, user);
+    } catch (error) {
+      done(error);
+    }
   });
 
   app.post("/api/register", async (req, res, next) => {
     try {
-      const { username, password, email, fullName } = req.body;
-      
-      // Check if username already exists
-      const existingUsername = await storage.getUserByUsername(username);
-      if (existingUsername) {
-        return res.status(400).json({ message: "Username already exists" });
+      const existingUser = await storage.getUserByUsername(req.body.username);
+      if (existingUser) {
+        return res.status(400).json({ error: "Username already exists" });
       }
-      
-      // Check if email already exists
-      const existingEmail = await storage.getUserByEmail(email);
+
+      // Check if email is already in use
+      const existingEmail = await storage.getUserByEmail(req.body.email);
       if (existingEmail) {
-        return res.status(400).json({ message: "Email already exists" });
+        return res.status(400).json({ error: "Email already in use" });
       }
-      
-      // Create user with hashed password
+
       const user = await storage.createUser({
-        username,
-        email,
-        fullName,
-        password: await hashPassword(password),
+        ...req.body,
+        password: await hashPassword(req.body.password),
       });
-      
-      // Remove password from returned user object
-      const { password: _, ...userWithoutPassword } = user;
-      
-      // Log in the user
+
       req.login(user, (err) => {
         if (err) return next(err);
-        res.status(201).json(userWithoutPassword);
+        res.status(201).json(user);
       });
     } catch (error) {
       next(error);
@@ -105,17 +103,13 @@ export function setupAuth(app: Express) {
         return next(err);
       }
       if (!user) {
-        return res.status(401).json({ message: "Invalid username or password" });
+        return res.status(401).json({ error: "Invalid username or password" });
       }
-      
-      req.login(user, (err) => {
-        if (err) {
-          return next(err);
+      req.login(user, (loginErr) => {
+        if (loginErr) {
+          return next(loginErr);
         }
-        
-        // Remove password from returned user object
-        const { password, ...userWithoutPassword } = user;
-        return res.json(userWithoutPassword);
+        return res.status(200).json(user);
       });
     })(req, res, next);
   });
@@ -129,9 +123,6 @@ export function setupAuth(app: Express) {
 
   app.get("/api/user", (req, res) => {
     if (!req.isAuthenticated()) return res.sendStatus(401);
-    
-    // Remove password from returned user object
-    const { password, ...userWithoutPassword } = req.user;
-    res.json(userWithoutPassword);
+    res.json(req.user);
   });
 }
