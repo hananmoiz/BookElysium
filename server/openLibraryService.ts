@@ -217,7 +217,7 @@ export async function getBookByOLID(olid: string): Promise<InsertBook | null> {
       throw new Error(`Open Library book fetch failed: ${response.statusText}`);
     }
 
-    const data = await response.json();
+    const data = await response.json() as any;
     
     // Get book details
     const title = data.title || 'Unknown';

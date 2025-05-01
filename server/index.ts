@@ -1,6 +1,7 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+import { preloadBooks } from "./preload";
 
 const app = express();
 app.use(express.json());
@@ -66,5 +67,11 @@ app.use((req, res, next) => {
     reusePort: true,
   }, () => {
     log(`serving on port ${port}`);
+    
+    // Preload books from Open Library API
+    // Run this asynchronously to not block the server startup
+    preloadBooks().catch(error => {
+      console.error('Failed to preload books:', error);
+    });
   });
 })();
