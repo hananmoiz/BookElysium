@@ -13,19 +13,26 @@ import { motion, AnimatePresence } from "framer-motion";
 
 interface BookCommentsProps {
   bookId: number;
+  comments?: any[];
+  isLoading?: boolean;
 }
 
-export default function BookComments({ bookId }: BookCommentsProps) {
+export default function BookComments({ bookId, comments: externalComments, isLoading: externalLoading }: BookCommentsProps) {
   const [_, setLocation] = useLocation();
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [comment, setComment] = useState("");
   
-  // Get book comments
-  const { data: comments, isLoading } = useQuery({
-    queryKey: [`/api/books/${bookId}/comments`]
+  // Get book comments if not provided externally
+  const { data: fetchedComments, isLoading: fetchLoading } = useQuery({
+    queryKey: [`/api/books/${bookId}/comments`],
+    enabled: !externalComments
   });
+  
+  // Use external comments if provided, otherwise use fetched comments
+  const comments = externalComments || fetchedComments;
+  const isLoading = externalLoading !== undefined ? externalLoading : fetchLoading;
   
   // Add comment mutation
   const { mutate: addComment, isPending } = useMutation({
