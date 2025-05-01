@@ -65,7 +65,7 @@ export function UserRatings() {
             <p className="text-muted-foreground mb-4">
               Rate books to track your reading preferences and get better recommendations
             </p>
-            <Button onClick={() => navigate("/explore")}>
+            <Button onClick={() => setLocation("/explore")}>
               Explore Books
             </Button>
           </div>
@@ -92,7 +92,7 @@ export function UserRatings() {
                   <>
                     <Avatar 
                       className="h-16 w-12 rounded-md cursor-pointer"
-                      onClick={() => navigate(`/books/${rating.bookId}`)}
+                      onClick={() => setLocation(`/books/${rating.bookId}`)}
                     >
                       <AvatarImage 
                         src={rating.book.cover || undefined} 
@@ -108,7 +108,7 @@ export function UserRatings() {
                       <div className="flex justify-between">
                         <h4 
                           className="font-medium hover:text-primary cursor-pointer"
-                          onClick={() => navigate(`/books/${rating.bookId}`)}
+                          onClick={() => setLocation(`/books/${rating.bookId}`)}
                         >
                           {rating.book.title}
                         </h4>

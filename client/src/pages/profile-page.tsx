@@ -23,6 +23,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useQueryClient } from "@tanstack/react-query";
+import { UserRatings } from "@/components/profile/UserRatings";
 
 const profileSchema = z.object({
   fullName: z.string().optional(),
@@ -287,6 +288,10 @@ export default function ProfilePage() {
                       </Form>
                     </CardContent>
                   </Card>
+                </TabsContent>
+
+                <TabsContent value="ratings">
+                  <UserRatings />
                 </TabsContent>
               </Tabs>
             </div>
