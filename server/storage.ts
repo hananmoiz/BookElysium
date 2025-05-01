@@ -372,11 +372,18 @@ export class MemStorage implements IStorage {
 
   async createUser(insertUser: InsertUser): Promise<User> {
     const id = this.currentUserId++;
+    
+    // Create user with all required fields for verification
     const user: User = { 
       ...insertUser, 
       id,
-      createdAt: new Date()
+      createdAt: new Date(),
+      isVerified: insertUser.isVerified || false,
+      verificationToken: insertUser.verificationToken || null,
+      resetPasswordToken: null,
+      resetPasswordExpires: null
     };
+    
     this.users.set(id, user);
     return user;
   }

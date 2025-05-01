@@ -50,11 +50,18 @@ export function setupAuth(app: Express) {
     new LocalStrategy(async (username, password, done) => {
       try {
         const user = await storage.getUserByUsername(username);
+        
+        // Check if user exists and password is correct
         if (!user || !(await comparePasswords(password, user.password))) {
-          return done(null, false);
-        } else {
-          return done(null, user);
+          return done(null, false, { message: "Invalid username or password" });
         }
+        
+        // Check if user is verified
+        if (user.isVerified === false) {
+          return done(null, false, { message: "Please verify your account before logging in" });
+        }
+        
+        return done(null, user);
       } catch (error) {
         return done(error);
       }
