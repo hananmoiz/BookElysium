@@ -409,6 +409,44 @@ export class DatabaseStorage implements IStorage {
       );
     return rating;
   }
+  
+  async getUserRatings(userId: number): Promise<Array<UserRating & { book?: Book }>> {
+    try {
+      // Get all ratings by this user
+      const ratings = await db
+        .select()
+        .from(userRatings)
+        .where(eq(userRatings.userId, userId))
+        .orderBy(desc(userRatings.rating));
+        
+      if (ratings.length === 0) {
+        return [];
+      }
+      
+      // Get the books information for each rating
+      const bookIds = ratings.map(rating => rating.bookId);
+      
+      const ratedBooks = await db
+        .select()
+        .from(books)
+        .where(sql`${books.id} IN (${bookIds.join(',')})`);
+        
+      // Create a lookup map for quick access
+      const booksMap = new Map<number, Book>();
+      ratedBooks.forEach(book => {
+        booksMap.set(book.id, book);
+      });
+      
+      // Combine ratings with book details
+      return ratings.map(rating => ({
+        ...rating,
+        book: booksMap.get(rating.bookId)
+      }));
+    } catch (error) {
+      console.error("Error getting user ratings:", error);
+      return [];
+    }
+  }
 
   async createOrUpdateUserRating(rating: InsertUserRating): Promise<UserRating> {
     const existingRating = await this.getUserRating(rating.userId, rating.bookId);

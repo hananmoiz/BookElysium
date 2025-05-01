@@ -545,6 +545,31 @@ export class MemStorage implements IStorage {
     return Array.from(this.userRatings.values())
       .find(rating => rating.userId === userId && rating.bookId === bookId);
   }
+  
+  async getUserRatings(userId: number): Promise<Array<UserRating & { book?: Book }>> {
+    try {
+      // Get all ratings by this user
+      const userRatings = Array.from(this.userRatings.values())
+        .filter(rating => rating.userId === userId)
+        .sort((a, b) => (b.rating || 0) - (a.rating || 0));
+      
+      if (userRatings.length === 0) {
+        return [];
+      }
+      
+      // Add book details to each rating
+      return userRatings.map(rating => {
+        const book = this.books.get(rating.bookId);
+        return {
+          ...rating,
+          book
+        };
+      });
+    } catch (error) {
+      console.error("Error getting user ratings:", error);
+      return [];
+    }
+  }
 
   async createOrUpdateUserRating(insertRating: InsertUserRating): Promise<UserRating> {
     // Check if rating already exists
