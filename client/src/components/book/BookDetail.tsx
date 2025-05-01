@@ -285,7 +285,7 @@ export default function BookDetail({ book, isLoading = false }: BookDetailProps)
             
             {url && (
               <Button
-                variant={isFree ? "accent" : "outline"}
+                variant={isFree ? "default" : "outline"}
                 className={`rounded-full px-6 py-2 h-auto ${isFree ? "bg-gradient-to-r from-accent to-accent/80 text-white border-0 hover:shadow-lg" : "border-2"}`}
                 asChild
               >

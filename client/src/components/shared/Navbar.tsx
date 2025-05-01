@@ -66,20 +66,14 @@ export default function Navbar() {
           
           {/* Desktop Navigation */}
           <nav className="hidden md:flex items-center space-x-8">
-            <Link href="/">
-              <a className={`font-medium hover:text-primary ${location === '/' ? 'text-primary' : ''}`}>
-                Home
-              </a>
+            <Link href="/" className={`font-medium hover:text-primary ${location === '/' ? 'text-primary' : ''}`}>
+              Home
             </Link>
-            <Link href="/explore">
-              <a className={`font-medium hover:text-primary ${location === '/explore' ? 'text-primary' : ''}`}>
-                Explore
-              </a>
+            <Link href="/explore" className={`font-medium hover:text-primary ${location === '/explore' ? 'text-primary' : ''}`}>
+              Explore
             </Link>
-            <Link href="/contact">
-              <a className={`font-medium hover:text-primary ${location === '/contact' ? 'text-primary' : ''}`}>
-                Contact
-              </a>
+            <Link href="/contact" className={`font-medium hover:text-primary ${location === '/contact' ? 'text-primary' : ''}`}>
+              Contact
             </Link>
           </nav>
           
@@ -184,39 +178,29 @@ export default function Navbar() {
         {/* Mobile Navigation Menu */}
         {mobileMenuOpen && (
           <div className="md:hidden bg-white py-4 px-2 space-y-4 border-t">
-            <Link href="/">
-              <a className={`block py-2 px-4 rounded-md ${location === '/' ? 'bg-primary/10 text-primary' : ''}`}>
-                Home
-              </a>
+            <Link href="/" className={`block py-2 px-4 rounded-md ${location === '/' ? 'bg-primary/10 text-primary' : ''}`}>
+              Home
             </Link>
-            <Link href="/explore">
-              <a className={`block py-2 px-4 rounded-md ${location === '/explore' ? 'bg-primary/10 text-primary' : ''}`}>
-                Explore
-              </a>
+            <Link href="/explore" className={`block py-2 px-4 rounded-md ${location === '/explore' ? 'bg-primary/10 text-primary' : ''}`}>
+              Explore
             </Link>
-            <Link href="/contact">
-              <a className={`block py-2 px-4 rounded-md ${location === '/contact' ? 'bg-primary/10 text-primary' : ''}`}>
-                Contact
-              </a>
+            <Link href="/contact" className={`block py-2 px-4 rounded-md ${location === '/contact' ? 'bg-primary/10 text-primary' : ''}`}>
+              Contact
             </Link>
             {user && (
               <>
-                <Link href="/saved">
-                  <a className={`block py-2 px-4 rounded-md ${location === '/saved' ? 'bg-primary/10 text-primary' : ''}`}>
-                    Saved Books
-                  </a>
+                <Link href="/saved" className={`block py-2 px-4 rounded-md ${location === '/saved' ? 'bg-primary/10 text-primary' : ''}`}>
+                  Saved Books
                 </Link>
-                <Link href="/profile">
-                  <a className={`block py-2 px-4 rounded-md ${location === '/profile' ? 'bg-primary/10 text-primary' : ''}`}>
-                    Profile
-                  </a>
+                <Link href="/profile" className={`block py-2 px-4 rounded-md ${location === '/profile' ? 'bg-primary/10 text-primary' : ''}`}>
+                  Profile
                 </Link>
-                <a 
-                  className="block py-2 px-4 rounded-md text-destructive" 
+                <button 
+                  className="w-full text-left block py-2 px-4 rounded-md text-destructive" 
                   onClick={handleLogout}
                 >
                   Logout
-                </a>
+                </button>
               </>
             )}
           </div>
