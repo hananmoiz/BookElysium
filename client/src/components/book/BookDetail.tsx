@@ -1,312 +1,305 @@
 import { useState } from "react";
-import { Link } from "wouter";
-import { 
-  Star, 
-  StarHalf, 
-  Bookmark, 
-  BookmarkCheck, 
-  ShoppingCart, 
-  ExternalLink, 
-  Calendar, 
-  Tag 
-} from "lucide-react";
-import { Book } from "@shared/schema";
+import { useQuery } from "@tanstack/react-query";
+import { useAuth } from "@/hooks/use-auth";
+import { useLocation } from "wouter";
+import { useToast } from "@/hooks/use-toast";
+import { StarRating } from "./StarRating";
+import { BookRatingWidget } from "./BookRatingWidget";
+import BookComments from "./BookComments";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
-import { rateBook, saveBook, unsaveBook } from "@/lib/api";
-import { useAuth } from "@/hooks/use-auth";
-import { useToast } from "@/hooks/use-toast";
-import { useQueryClient } from "@tanstack/react-query";
+import { Separator } from "@/components/ui/separator";
+import { 
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { Heart, BookOpen, Clock, Share2, ArrowLeft } from "lucide-react";
+import { formatDate, calculateReadingTime, truncateText } from "@/lib/utils";
+import { motion } from "framer-motion";
 
 interface BookDetailProps {
-  book: Book & { isSaved: boolean };
-  isLoading?: boolean;
+  bookId: number;
 }
 
-export default function BookDetail({ book, isLoading = false }: BookDetailProps) {
-  const { 
-    id, 
-    title, 
-    author, 
-    description, 
-    cover, 
-    rating, 
-    ratingCount, 
-    genre, 
-    isFree, 
-    publishDate, 
-    url, 
-    isSaved 
-  } = book || {};
-  
-  const { user } = useAuth();
+export default function BookDetail({ bookId }: BookDetailProps) {
+  const [_, setLocation] = useLocation();
   const { toast } = useToast();
-  const queryClient = useQueryClient();
-  const [isSaving, setIsSaving] = useState(false);
-  const [isRating, setIsRating] = useState(false);
-  const [isBookSaved, setIsBookSaved] = useState(isSaved);
-  const [currentRating, setCurrentRating] = useState<number | null>(rating || null);
-  const [currentRatingCount, setCurrentRatingCount] = useState(ratingCount || 0);
-  const [hoveredRating, setHoveredRating] = useState(0);
-
-  // Fallback cover image
-  const coverImage = cover || `https://ui-avatars.com/api/?name=${encodeURIComponent(title || "Book Title")}&size=512&background=random`;
-
-  const handleToggleSave = async () => {
+  const { user } = useAuth();
+  const [isSaved, setIsSaved] = useState(false);
+  const [showRatingWidget, setShowRatingWidget] = useState(false);
+  
+  // Get book details
+  const { data: book, isLoading: isBookLoading } = useQuery({
+    queryKey: [`/api/books/${bookId}`],
+  });
+  
+  // Check if book is saved by user
+  const { data: savedStatus } = useQuery({
+    queryKey: [`/api/books/${bookId}/saved`],
+    enabled: !!user,
+  });
+  
+  // Set saved status when data is loaded
+  useState(() => {
+    if (savedStatus) {
+      setIsSaved(savedStatus.isSaved);
+    }
+  });
+  
+  // Save or unsave book
+  const toggleSaveBook = async () => {
     if (!user) {
       toast({
         title: "Authentication required",
-        description: "Please login to save books",
+        description: "Please log in to save books",
         variant: "destructive",
       });
+      setLocation("/auth");
       return;
     }
     
-    setIsSaving(true);
     try {
-      if (isBookSaved) {
-        await unsaveBook(id);
-        setIsBookSaved(false);
+      if (isSaved) {
+        // Unsave book
+        await fetch(`/api/books/${bookId}/save`, {
+          method: "DELETE",
+          credentials: "include",
+        });
+        setIsSaved(false);
         toast({
           title: "Book removed",
-          description: `"${title}" has been removed from your saved books`,
+          description: "Book removed from your saved list",
         });
       } else {
-        await saveBook(id);
-        setIsBookSaved(true);
+        // Save book
+        await fetch(`/api/books/${bookId}/save`, {
+          method: "POST",
+          credentials: "include",
+        });
+        setIsSaved(true);
         toast({
           title: "Book saved",
-          description: `"${title}" has been added to your saved books`,
+          description: "Book added to your saved list",
         });
       }
-      // Invalidate saved books query
-      queryClient.invalidateQueries({ queryKey: ["/api/saved-books"] });
     } catch (error) {
       toast({
-        title: "Error",
+        title: "Action failed",
         description: "Failed to update saved status",
         variant: "destructive",
       });
-    } finally {
-      setIsSaving(false);
     }
   };
-
-  const handleRating = async (value: number) => {
+  
+  // Handle book reading
+  const readBook = () => {
+    if (book?.url) {
+      window.open(book.url, "_blank");
+    } else {
+      toast({
+        title: "Book not available",
+        description: "This book is not available for reading online",
+        variant: "destructive",
+      });
+    }
+  };
+  
+  // Handle rating button click
+  const handleRateClick = () => {
     if (!user) {
       toast({
         title: "Authentication required",
-        description: "Please login to rate books",
+        description: "Please log in to rate books",
         variant: "destructive",
       });
+      setLocation("/auth");
       return;
     }
     
-    setIsRating(true);
-    try {
-      const response = await rateBook(id, value);
-      setCurrentRating(response.book.rating || null);
-      setCurrentRatingCount(response.book.ratingCount || 0);
-      toast({
-        title: "Rating submitted",
-        description: `You've rated "${title}" with ${value} stars`,
-      });
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to submit rating",
-        variant: "destructive",
-      });
-    } finally {
-      setIsRating(false);
-      setHoveredRating(0);
-    }
+    setShowRatingWidget(prev => !prev);
   };
-
-  const renderRatingStars = () => {
+  
+  // Loading skeleton
+  if (isBookLoading) {
     return (
-      <div className="flex">
-        {[1, 2, 3, 4, 5].map((value) => (
-          <button
-            key={value}
-            disabled={isRating}
-            onClick={() => handleRating(value)}
-            onMouseEnter={() => setHoveredRating(value)}
-            onMouseLeave={() => setHoveredRating(0)}
-            className="focus:outline-none disabled:opacity-70"
-          >
-            <Star 
-              className={`h-6 w-6 ${
-                hoveredRating >= value 
-                  ? "fill-accent text-accent" 
-                  : (currentRating && value <= currentRating)
-                  ? "fill-accent text-accent" 
-                  : (currentRating && value - 0.5 <= currentRating)
-                  ? "fill-accent text-accent" 
-                  : "text-gray-300"
-              }`} 
-            />
-          </button>
-        ))}
-      </div>
-    );
-  };
-
-  if (isLoading) {
-    return (
-      <div className="max-w-4xl mx-auto">
-        <div className="flex flex-col md:flex-row gap-8">
-          <div className="md:w-1/3">
-            <Skeleton className="w-full aspect-[2/3] rounded-lg" />
-          </div>
-          <div className="md:w-2/3 space-y-4">
-            <Skeleton className="h-8 w-3/4" />
-            <Skeleton className="h-6 w-1/2" />
-            <Skeleton className="h-4 w-1/4" />
-            <div className="flex space-x-2 pt-2">
-              <Skeleton className="h-6 w-6" />
-              <Skeleton className="h-6 w-6" />
-              <Skeleton className="h-6 w-6" />
-              <Skeleton className="h-6 w-6" />
-              <Skeleton className="h-6 w-6" />
-            </div>
-            <Skeleton className="h-4 w-1/3" />
-            <div className="space-y-2 pt-4">
-              <Skeleton className="h-20 w-full" />
-            </div>
-            <div className="flex space-x-3 pt-4">
-              <Skeleton className="h-10 w-32 rounded-full" />
-              <Skeleton className="h-10 w-32 rounded-full" />
-            </div>
+      <div className="animate-pulse space-y-4">
+        <div className="h-8 w-3/4 bg-gray-200 rounded"></div>
+        <div className="flex space-x-4">
+          <div className="h-48 w-32 bg-gray-200 rounded"></div>
+          <div className="flex-1 space-y-2">
+            <div className="h-4 w-1/4 bg-gray-200 rounded"></div>
+            <div className="h-4 w-3/4 bg-gray-200 rounded"></div>
+            <div className="h-4 w-1/2 bg-gray-200 rounded"></div>
           </div>
         </div>
+        <div className="h-32 bg-gray-200 rounded"></div>
       </div>
     );
   }
+  
+  if (!book) {
+    return <div>Book not found</div>;
+  }
+  
+  // Estimate reading time
+  const readingTime = calculateReadingTime(book.description || "");
 
   return (
-    <div className="max-w-4xl mx-auto">
-      <div className="flex flex-col md:flex-row gap-8">
-        <div className="md:w-1/3">
-          <div className="relative group">
-            <div className="absolute -inset-1 bg-gradient-to-r from-primary/30 to-accent/30 rounded-lg blur-md opacity-75 group-hover:opacity-100 transition duration-1000"></div>
-            <div className="relative">
-              <img 
-                src={coverImage} 
-                alt={`${title} cover`} 
-                className="w-full rounded-lg shadow-lg group-hover:shadow-xl transition-all duration-300"
-                onError={(e) => {
-                  // If image fails to load, show a fallback
-                  (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(title)}&size=512&background=random`;
-                }}
+    <div className="space-y-6">
+      {/* Back button */}
+      <Button
+        variant="ghost"
+        className="flex items-center text-muted-foreground hover:text-foreground"
+        onClick={() => setLocation("/books")}
+      >
+        <ArrowLeft className="h-4 w-4 mr-2" />
+        Back to books
+      </Button>
+      
+      {/* Book header */}
+      <div className="flex flex-col lg:flex-row gap-6">
+        {/* Book cover */}
+        <motion.div 
+          className="w-full lg:w-1/3 xl:w-1/4"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4 }}
+        >
+          <div className="relative aspect-[2/3] overflow-hidden rounded-lg shadow-lg">
+            {book.cover ? (
+              <img
+                src={book.cover}
+                alt={book.title}
+                className="w-full h-full object-cover"
               />
-              {isFree && (
-                <Badge className="absolute top-3 right-3 bg-gradient-to-r from-accent to-accent/80 text-white font-bold px-3 py-1 shadow-md">
-                  FREE
-                </Badge>
-              )}
-            </div>
-          </div>
-        </div>
-        
-        <div className="md:w-2/3">
-          <h1 className="font-heading text-3xl md:text-4xl font-bold mb-2 bg-clip-text text-transparent bg-gradient-to-r from-primary to-primary-dark">{title}</h1>
-          <p className="text-xl text-muted-foreground mb-4">by {author}</p>
-          
-          <div className="flex items-center mb-4 bg-card p-3 rounded-lg border shadow-sm">
-            <div className="flex space-x-1 mr-3">
-              {renderRatingStars()}
-            </div>
-            <span className="text-sm font-medium">
-              {currentRating ? (
-                <span className="flex items-center">
-                  <span className="font-bold text-primary">{currentRating.toFixed(1)}</span>
-                  <span className="mx-1 text-muted-foreground">•</span>
-                  <span className="text-muted-foreground">{currentRatingCount || 0} ratings</span>
-                </span>
-              ) : (
-                <span className="text-muted-foreground italic">No ratings yet</span>
-              )}
-            </span>
-          </div>
-          
-          <div className="flex flex-wrap gap-3 mb-6">
-            {genre && (
-              <Badge variant="secondary" className="flex items-center gap-1 px-3 py-1 font-medium">
-                <Tag className="h-3.5 w-3.5" />
-                {genre}
-              </Badge>
-            )}
-            {publishDate && (
-              <Badge variant="outline" className="flex items-center gap-1 px-3 py-1 font-medium">
-                <Calendar className="h-3.5 w-3.5" />
-                {publishDate}
-              </Badge>
+            ) : (
+              <div className="w-full h-full bg-slate-200 flex items-center justify-center">
+                <span className="text-slate-400 text-lg">{book.title}</span>
+              </div>
             )}
           </div>
           
-          <div className="mb-8 bg-card/50 border rounded-lg p-4 shadow-sm">
-            <h3 className="font-semibold text-lg mb-2 flex items-center">
-              <span className="bg-primary/10 p-1 rounded-md mr-2">
-                <span className="block w-4 h-0.5 bg-primary mb-1"></span>
-                <span className="block w-4 h-0.5 bg-primary"></span>
-              </span>
-              Description
-            </h3>
-            <p className="text-muted-foreground leading-relaxed">
-              {description || "No description available for this book."}
-            </p>
-          </div>
-          
-          <div className="flex flex-wrap gap-3">
+          {/* Action buttons */}
+          <div className="flex gap-2 mt-4">
             <Button
-              variant={isBookSaved ? "secondary" : "default"}
-              className={`rounded-full px-6 py-2 h-auto ${
-                isBookSaved 
-                  ? "bg-secondary/90 hover:bg-secondary border-secondary" 
-                  : "bg-gradient-to-r from-primary to-primary-dark hover:shadow-lg border-0"
-              }`}
-              disabled={isSaving}
-              onClick={handleToggleSave}
+              className="flex-1"
+              variant={book.isFree ? "default" : "outline"}
+              onClick={readBook}
             >
-              {isBookSaved ? (
-                <>
-                  <BookmarkCheck className="mr-2 h-5 w-5" />
-                  <span className="font-medium">Saved to Library</span>
-                </>
-              ) : (
-                <>
-                  <Bookmark className="mr-2 h-5 w-5" />
-                  <span className="font-medium">Save to Library</span>
-                </>
-              )}
+              <BookOpen className="h-4 w-4 mr-2" />
+              {book.isFree ? "Read Free" : "Preview"}
             </Button>
             
-            {url && (
-              <Button
-                variant={isFree ? "default" : "outline"}
-                className={`rounded-full px-6 py-2 h-auto ${isFree ? "bg-gradient-to-r from-accent to-accent/80 text-white border-0 hover:shadow-lg" : "border-2"}`}
-                asChild
-              >
-                <a href={url} target="_blank" rel="noopener noreferrer">
-                  {isFree ? (
-                    <>
-                      <ExternalLink className="mr-2 h-5 w-5" />
-                      <span className="font-medium">Read Now</span>
-                    </>
-                  ) : (
-                    <>
-                      <ShoppingCart className="mr-2 h-5 w-5" />
-                      <span className="font-medium">Buy Now</span>
-                    </>
-                  )}
-                </a>
-              </Button>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className={isSaved ? "text-red-500" : ""}
+                    onClick={toggleSaveBook}
+                  >
+                    <Heart className={`h-4 w-4 ${isSaved ? "fill-current" : ""}`} />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>{isSaved ? "Remove from saved" : "Save book"}</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+            
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="outline" size="icon" onClick={() => {
+                    navigator.clipboard.writeText(window.location.href);
+                    toast({
+                      title: "Link copied",
+                      description: "Book link copied to clipboard",
+                    });
+                  }}>
+                    <Share2 className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Share book</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
+        </motion.div>
+        
+        {/* Book details */}
+        <motion.div 
+          className="flex-1"
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.4, delay: 0.1 }}
+        >
+          <h1 className="text-3xl font-bold">{book.title}</h1>
+          
+          <div className="flex items-center gap-2 mt-2">
+            <p className="text-lg text-muted-foreground">By {book.author}</p>
+          </div>
+          
+          <div className="flex items-center mt-2 gap-4">
+            <div className="flex items-center">
+              <StarRating value={book.rating || 0} readOnly showValue />
+              <span className="text-sm text-muted-foreground ml-2">
+                ({book.ratingCount || 0} ratings)
+              </span>
+            </div>
+            
+            <Button variant="link" className="p-0 h-auto" onClick={handleRateClick}>
+              Rate this book
+            </Button>
+          </div>
+          
+          <div className="flex flex-wrap gap-2 mt-4">
+            {book.genre && (
+              <Badge variant="outline">{book.genre}</Badge>
+            )}
+            
+            {book.publishDate && (
+              <Badge variant="outline">
+                Published: {formatDate(book.publishDate)}
+              </Badge>
+            )}
+            
+            {book.description && (
+              <div className="flex items-center text-sm text-muted-foreground">
+                <Clock className="h-4 w-4 mr-1" />
+                {readingTime}
+              </div>
             )}
           </div>
-        </div>
+          
+          <Separator className="my-4" />
+          
+          <div className="prose prose-slate max-w-none dark:prose-invert">
+            <h3 className="text-xl font-medium">About this book</h3>
+            <p>{book.description || "No description available."}</p>
+          </div>
+        </motion.div>
       </div>
+      
+      {/* Rating widget */}
+      {showRatingWidget && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="my-8"
+        >
+          <BookRatingWidget bookId={book.id} title={book.title} />
+        </motion.div>
+      )}
+      
+      <Separator className="my-8" />
+      
+      {/* Book comments */}
+      <BookComments bookId={book.id} />
     </div>
   );
 }

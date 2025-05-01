@@ -1,27 +1,80 @@
 import { useState } from "react";
-import { BookComment } from "@shared/schema";
 import { useAuth } from "@/hooks/use-auth";
+import { useLocation } from "wouter";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
-import { addBookComment } from "@/lib/api";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Skeleton } from "@/components/ui/skeleton";
-import { useQueryClient } from "@tanstack/react-query";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { formatDate } from "@/lib/utils";
+import { Loader2 } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 
 interface BookCommentsProps {
   bookId: number;
-  comments: (BookComment & { user: { username: string; fullName?: string } })[];
-  isLoading?: boolean;
 }
 
-export default function BookComments({ bookId, comments, isLoading = false }: BookCommentsProps) {
+export default function BookComments({ bookId }: BookCommentsProps) {
+  const [_, setLocation] = useLocation();
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [comment, setComment] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
+  
+  // Get book comments
+  const { data: comments, isLoading } = useQuery({
+    queryKey: [`/api/books/${bookId}/comments`]
+  });
+  
+  // Add comment mutation
+  const { mutate: addComment, isPending } = useMutation({
+    mutationFn: async (text: string) => {
+      const res = await apiRequest("POST", `/api/books/${bookId}/comments`, { text });
+      return await res.json();
+    },
+    onSuccess: () => {
+      setComment("");
+      queryClient.invalidateQueries({ queryKey: [`/api/books/${bookId}/comments`] });
+      toast({
+        title: "Comment added",
+        description: "Your comment has been posted successfully",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Failed to add comment",
+        description: error.message || "Please try again later",
+        variant: "destructive",
+      });
+    }
+  });
+  
+  // Handle comment submission
+  const handleSubmitComment = () => {
+    if (!user) {
+      toast({
+        title: "Authentication required",
+        description: "Please log in to comment",
+        variant: "destructive",
+      });
+      setLocation("/auth");
+      return;
+    }
+    
+    if (!comment.trim()) {
+      toast({
+        title: "Empty comment",
+        description: "Please write something before posting",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    addComment(comment);
+  };
+  
+  // Get user initials for avatar
   const getInitials = (name: string) => {
     return name
       .split(' ')
@@ -30,140 +83,109 @@ export default function BookComments({ bookId, comments, isLoading = false }: Bo
       .toUpperCase()
       .substring(0, 2);
   };
-
-  const handleSubmitComment = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!user) {
-      toast({
-        title: "Authentication required",
-        description: "Please login to post comments",
-        variant: "destructive",
-      });
-      return;
-    }
-    
-    if (!comment.trim()) {
-      toast({
-        title: "Empty comment",
-        description: "Please enter a comment",
-        variant: "destructive",
-      });
-      return;
-    }
-    
-    setIsSubmitting(true);
-    try {
-      await addBookComment(bookId, comment);
-      setComment("");
-      toast({
-        title: "Comment posted",
-        description: "Your comment has been posted successfully",
-      });
-      
-      // Refresh comments
-      queryClient.invalidateQueries({ queryKey: [`/api/books/${bookId}/comments`] });
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to post comment",
-        variant: "destructive",
-      });
-    } finally {
-      setIsSubmitting(false);
-    }
+  
+  // Comment item animation variants
+  const commentVariants = {
+    initial: { opacity: 0, y: 20 },
+    animate: { opacity: 1, y: 0, transition: { duration: 0.3 } },
+    exit: { opacity: 0, height: 0, marginBottom: 0 }
   };
-
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    });
-  };
-
-  if (isLoading) {
-    return (
-      <div className="space-y-6">
-        <h2 className="font-heading text-2xl font-bold">Comments</h2>
-        
-        <div className="space-y-2">
-          <Skeleton className="h-24 w-full" />
-          <div className="flex justify-end">
-            <Skeleton className="h-10 w-24" />
-          </div>
-        </div>
-        
-        <div className="space-y-6">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="flex gap-4">
-              <Skeleton className="h-10 w-10 rounded-full" />
-              <div className="flex-1">
-                <Skeleton className="h-5 w-1/3 mb-1" />
-                <Skeleton className="h-4 w-1/4 mb-3" />
-                <Skeleton className="h-20 w-full" />
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-6">
-      <h2 className="font-heading text-2xl font-bold">Comments</h2>
+      <h2 className="text-2xl font-bold">Comments</h2>
       
-      {user && (
-        <form onSubmit={handleSubmitComment} className="space-y-4">
-          <Textarea
-            placeholder="Share your thoughts about this book..."
-            value={comment}
-            onChange={(e) => setComment(e.target.value)}
-            className="h-24"
-            disabled={isSubmitting}
-          />
-          <div className="flex justify-end">
-            <Button 
-              type="submit" 
-              disabled={isSubmitting || !comment.trim()}
-              className="bg-primary text-white hover:bg-primary/90"
-            >
-              {isSubmitting ? "Posting..." : "Post Comment"}
-            </Button>
-          </div>
-        </form>
-      )}
+      {/* Comment form */}
+      <div className="space-y-4">
+        <Textarea
+          placeholder="Share your thoughts about this book..."
+          value={comment}
+          onChange={(e) => setComment(e.target.value)}
+          disabled={isPending || !user}
+          className="resize-none min-h-[100px]"
+        />
+        
+        <div className="flex justify-between items-center">
+          {!user && (
+            <p className="text-sm text-muted-foreground">
+              <Button 
+                variant="link" 
+                className="p-0 h-auto" 
+                onClick={() => setLocation("/auth")}
+              >
+                Sign in
+              </Button> to leave a comment
+            </p>
+          )}
+          
+          <Button 
+            onClick={handleSubmitComment} 
+            disabled={isPending || !user || !comment.trim()}
+            className="ml-auto"
+          >
+            {isPending ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" /> 
+                Posting...
+              </>
+            ) : (
+              'Post Comment'
+            )}
+          </Button>
+        </div>
+      </div>
       
-      <div className="space-y-6">
-        {comments.length === 0 ? (
-          <div className="text-center py-8 text-muted-foreground">
-            <p>No comments yet. Be the first to share your thoughts!</p>
-          </div>
-        ) : (
-          comments.map((comment) => (
-            <div key={comment.id} className="flex gap-4">
-              <Avatar>
-                <AvatarFallback>
-                  {comment.user.fullName 
-                    ? getInitials(comment.user.fullName) 
-                    : comment.user.username.substring(0, 2).toUpperCase()}
-                </AvatarFallback>
-              </Avatar>
-              <div>
-                <div className="flex items-baseline gap-2">
-                  <h4 className="font-semibold">
-                    {comment.user.fullName || comment.user.username}
-                  </h4>
-                  <span className="text-xs text-muted-foreground">
-                    {formatDate(comment.createdAt.toString())}
-                  </span>
+      {/* Comments list */}
+      <div className="space-y-6 mt-8">
+        {isLoading ? (
+          <div className="space-y-4">
+            {[1, 2].map((i) => (
+              <div key={i} className="animate-pulse flex space-x-4">
+                <div className="rounded-full bg-slate-200 h-10 w-10"></div>
+                <div className="flex-1 space-y-2 py-1">
+                  <div className="h-4 bg-slate-200 rounded w-1/4"></div>
+                  <div className="h-4 bg-slate-200 rounded w-3/4"></div>
                 </div>
-                <p className="mt-2 text-muted-foreground">{comment.comment}</p>
               </div>
-            </div>
-          ))
+            ))}
+          </div>
+        ) : comments?.length > 0 ? (
+          <AnimatePresence>
+            {comments.map((comment: any) => (
+              <motion.div
+                key={comment.id}
+                className="flex space-x-4"
+                variants={commentVariants}
+                initial="initial"
+                animate="animate"
+                exit="exit"
+              >
+                <Avatar className="h-10 w-10">
+                  <AvatarFallback>
+                    {comment.user.fullName 
+                      ? getInitials(comment.user.fullName) 
+                      : comment.user.username.substring(0, 2).toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+                
+                <div className="flex-1">
+                  <div className="flex items-center">
+                    <h4 className="font-medium">
+                      {comment.user.fullName || comment.user.username}
+                    </h4>
+                    <span className="ml-2 text-xs text-muted-foreground">
+                      {formatDate(comment.createdAt)}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-muted-foreground">{comment.text}</p>
+                </div>
+              </motion.div>
+            ))}
+          </AnimatePresence>
+        ) : (
+          <p className="text-center text-muted-foreground py-6">
+            No comments yet. Be the first to share your thoughts!
+          </p>
         )}
       </div>
     </div>
