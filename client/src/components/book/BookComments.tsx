@@ -37,7 +37,7 @@ export default function BookComments({ bookId, comments: externalComments, isLoa
   // Add comment mutation
   const { mutate: addComment, isPending } = useMutation({
     mutationFn: async (text: string) => {
-      const res = await apiRequest("POST", `/api/books/${bookId}/comments`, { text });
+      const res = await apiRequest("POST", `/api/books/${bookId}/comments`, { comment: text });
       return await res.json();
     },
     onSuccess: () => {
@@ -184,7 +184,7 @@ export default function BookComments({ bookId, comments: externalComments, isLoa
                       {formatDate(comment.createdAt)}
                     </span>
                   </div>
-                  <p className="mt-1 text-muted-foreground">{comment.text}</p>
+                  <p className="mt-1 text-muted-foreground">{comment.comment}</p>
                 </div>
               </motion.div>
             ))}

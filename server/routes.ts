@@ -237,24 +237,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
     
     try {
+      console.log("Received comment data:", req.body);
       const bookId = parseInt(req.params.id);
-      const validatedData = insertBookCommentSchema.parse({
-        ...req.body,
-        userId: req.user.id,
-        bookId
-      });
+      console.log(`Comment will be added to book ID: ${bookId}`);
       
-      const comment = await storage.createBookComment(validatedData);
-      const user = await storage.getUser(req.user.id);
-      
-      res.status(201).json({
-        ...comment,
-        user
-      });
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ error: "Invalid comment data", details: error.errors });
+      try {
+        const validatedData = insertBookCommentSchema.parse({
+          ...req.body,
+          userId: req.user.id,
+          bookId
+        });
+        
+        console.log("Validated comment data:", validatedData);
+        const comment = await storage.createBookComment(validatedData);
+        const user = await storage.getUser(req.user.id);
+        
+        console.log("Comment successfully added:", comment);
+        res.status(201).json({
+          ...comment,
+          user
+        });
+      } catch (validationError) {
+        console.error("Validation error:", validationError);
+        if (validationError instanceof z.ZodError) {
+          return res.status(400).json({ 
+            error: "Invalid comment data", 
+            details: validationError.errors,
+            received: req.body 
+          });
+        }
+        throw validationError;
       }
+    } catch (error) {
+      console.error("Error adding comment:", error);
       res.status(500).json({ error: "Failed to add comment" });
     }
   });
