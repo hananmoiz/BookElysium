@@ -46,7 +46,7 @@ export default function BookDetail({ book, isLoading = false }: BookDetailProps)
   const [isSaving, setIsSaving] = useState(false);
   const [isRating, setIsRating] = useState(false);
   const [isBookSaved, setIsBookSaved] = useState(isSaved);
-  const [currentRating, setCurrentRating] = useState(rating || null);
+  const [currentRating, setCurrentRating] = useState<number | null>(rating || null);
   const [currentRatingCount, setCurrentRatingCount] = useState(ratingCount || 0);
   const [hoveredRating, setHoveredRating] = useState(0);
 
@@ -106,8 +106,8 @@ export default function BookDetail({ book, isLoading = false }: BookDetailProps)
     setIsRating(true);
     try {
       const response = await rateBook(id, value);
-      setCurrentRating(response.book.rating);
-      setCurrentRatingCount(response.book.ratingCount);
+      setCurrentRating(response.book.rating || null);
+      setCurrentRatingCount(response.book.ratingCount || 0);
       toast({
         title: "Rating submitted",
         description: `You've rated "${title}" with ${value} stars`,
@@ -189,55 +189,72 @@ export default function BookDetail({ book, isLoading = false }: BookDetailProps)
     <div className="max-w-4xl mx-auto">
       <div className="flex flex-col md:flex-row gap-8">
         <div className="md:w-1/3">
-          <div className="relative">
-            <img 
-              src={coverImage} 
-              alt={`${title} cover`} 
-              className="w-full rounded-lg shadow-lg"
-              onError={(e) => {
-                // If image fails to load, show a fallback
-                (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(title)}&size=512&background=random`;
-              }}
-            />
-            {isFree && (
-              <Badge className="absolute top-3 right-3 bg-accent text-foreground">
-                FREE
-              </Badge>
-            )}
+          <div className="relative group">
+            <div className="absolute -inset-1 bg-gradient-to-r from-primary/30 to-accent/30 rounded-lg blur-md opacity-75 group-hover:opacity-100 transition duration-1000"></div>
+            <div className="relative">
+              <img 
+                src={coverImage} 
+                alt={`${title} cover`} 
+                className="w-full rounded-lg shadow-lg group-hover:shadow-xl transition-all duration-300"
+                onError={(e) => {
+                  // If image fails to load, show a fallback
+                  (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(title)}&size=512&background=random`;
+                }}
+              />
+              {isFree && (
+                <Badge className="absolute top-3 right-3 bg-gradient-to-r from-accent to-accent/80 text-white font-bold px-3 py-1 shadow-md">
+                  FREE
+                </Badge>
+              )}
+            </div>
           </div>
         </div>
         
         <div className="md:w-2/3">
-          <h1 className="font-heading text-3xl md:text-4xl font-bold mb-2">{title}</h1>
+          <h1 className="font-heading text-3xl md:text-4xl font-bold mb-2 bg-clip-text text-transparent bg-gradient-to-r from-primary to-primary-dark">{title}</h1>
           <p className="text-xl text-muted-foreground mb-4">by {author}</p>
           
-          <div className="flex items-center mb-4">
+          <div className="flex items-center mb-4 bg-card p-3 rounded-lg border shadow-sm">
             <div className="flex space-x-1 mr-3">
               {renderRatingStars()}
             </div>
-            <span className="text-sm text-muted-foreground">
-              {currentRating ? `${currentRating.toFixed(1)} (${currentRatingCount || 0} ratings)` : 'No ratings yet'}
+            <span className="text-sm font-medium">
+              {currentRating ? (
+                <span className="flex items-center">
+                  <span className="font-bold text-primary">{currentRating.toFixed(1)}</span>
+                  <span className="mx-1 text-muted-foreground">•</span>
+                  <span className="text-muted-foreground">{currentRatingCount || 0} ratings</span>
+                </span>
+              ) : (
+                <span className="text-muted-foreground italic">No ratings yet</span>
+              )}
             </span>
           </div>
           
           <div className="flex flex-wrap gap-3 mb-6">
             {genre && (
-              <Badge variant="outline" className="flex items-center gap-1">
-                <Tag className="h-3 w-3" />
+              <Badge variant="secondary" className="flex items-center gap-1 px-3 py-1 font-medium">
+                <Tag className="h-3.5 w-3.5" />
                 {genre}
               </Badge>
             )}
             {publishDate && (
-              <Badge variant="outline" className="flex items-center gap-1">
-                <Calendar className="h-3 w-3" />
+              <Badge variant="outline" className="flex items-center gap-1 px-3 py-1 font-medium">
+                <Calendar className="h-3.5 w-3.5" />
                 {publishDate}
               </Badge>
             )}
           </div>
           
-          <div className="mb-6">
-            <h3 className="font-semibold text-lg mb-2">Description</h3>
-            <p className="text-muted-foreground">
+          <div className="mb-8 bg-card/50 border rounded-lg p-4 shadow-sm">
+            <h3 className="font-semibold text-lg mb-2 flex items-center">
+              <span className="bg-primary/10 p-1 rounded-md mr-2">
+                <span className="block w-4 h-0.5 bg-primary mb-1"></span>
+                <span className="block w-4 h-0.5 bg-primary"></span>
+              </span>
+              Description
+            </h3>
+            <p className="text-muted-foreground leading-relaxed">
               {description || "No description available for this book."}
             </p>
           </div>
@@ -245,39 +262,43 @@ export default function BookDetail({ book, isLoading = false }: BookDetailProps)
           <div className="flex flex-wrap gap-3">
             <Button
               variant={isBookSaved ? "secondary" : "default"}
-              className="rounded-full"
+              className={`rounded-full px-6 py-2 h-auto ${
+                isBookSaved 
+                  ? "bg-secondary/90 hover:bg-secondary border-secondary" 
+                  : "bg-gradient-to-r from-primary to-primary-dark hover:shadow-lg border-0"
+              }`}
               disabled={isSaving}
               onClick={handleToggleSave}
             >
               {isBookSaved ? (
                 <>
                   <BookmarkCheck className="mr-2 h-5 w-5" />
-                  Saved
+                  <span className="font-medium">Saved to Library</span>
                 </>
               ) : (
                 <>
                   <Bookmark className="mr-2 h-5 w-5" />
-                  Save Book
+                  <span className="font-medium">Save to Library</span>
                 </>
               )}
             </Button>
             
             {url && (
               <Button
-                variant="outline"
-                className="rounded-full"
+                variant={isFree ? "accent" : "outline"}
+                className={`rounded-full px-6 py-2 h-auto ${isFree ? "bg-gradient-to-r from-accent to-accent/80 text-white border-0 hover:shadow-lg" : "border-2"}`}
                 asChild
               >
                 <a href={url} target="_blank" rel="noopener noreferrer">
                   {isFree ? (
                     <>
                       <ExternalLink className="mr-2 h-5 w-5" />
-                      Read Now
+                      <span className="font-medium">Read Now</span>
                     </>
                   ) : (
                     <>
                       <ShoppingCart className="mr-2 h-5 w-5" />
-                      Buy Now
+                      <span className="font-medium">Buy Now</span>
                     </>
                   )}
                 </a>
