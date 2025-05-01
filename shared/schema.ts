@@ -62,13 +62,34 @@ export const categories = pgTable("categories", {
   bookCount: integer("book_count").default(0),
 });
 
-// Insert schemas
-export const insertUserSchema = createInsertSchema(users).pick({
-  username: true,
-  password: true,
-  email: true,
-  fullName: true,
-});
+// Insert schemas with enhanced validation
+export const insertUserSchema = createInsertSchema(users)
+  .pick({
+    username: true,
+    password: true,
+    email: true,
+    fullName: true,
+  })
+  .extend({
+    // Enhanced email validation with common patterns and domain check
+    email: z.string()
+      .email("Invalid email format")
+      .refine(email => {
+        // Basic domain validation - must have valid TLD structure
+        const domainParts = email.split('@')[1]?.split('.');
+        return domainParts && domainParts.length >= 2 && domainParts[domainParts.length - 1].length >= 2;
+      }, "Email domain appears to be invalid"),
+    // Enhanced password requirements
+    password: z.string()
+      .min(8, "Password must be at least 8 characters")
+      .refine(password => /[A-Z]/.test(password), "Password must contain at least one uppercase letter")
+      .refine(password => /[0-9]/.test(password), "Password must contain at least one number"),
+    // Username validation
+    username: z.string()
+      .min(3, "Username must be at least 3 characters")
+      .max(30, "Username must be less than 30 characters")
+      .refine(username => /^[a-zA-Z0-9_-]+$/.test(username), "Username can only contain letters, numbers, underscores and hyphens")
+  });
 
 export const insertBookSchema = createInsertSchema(books).omit({
   id: true,
