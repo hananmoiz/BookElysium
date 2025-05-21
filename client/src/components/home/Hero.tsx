@@ -10,8 +10,8 @@ export default function Hero() {
       <div className="container mx-auto px-4">
         <div className="flex flex-col md:flex-row items-center">
           <div className="md:w-1/2 mb-12 md:mb-0">
-            <h1 className="font-heading text-4xl md:text-5xl lg:text-6xl font-bold mb-6">
-              Discover Your Next Great Adventure
+            <h1 className="font-heading text-3xl md:text-3xl lg:text-4xl font-bold mb-6">
+              Personalized Book Recommendation Website Enhanced by AI
             </h1>
             <p className="text-lg md:text-xl mb-8 opacity-90">
               Explore thousands of books - from bestsellers to hidden gems, all in one place. Find your perfect read today.

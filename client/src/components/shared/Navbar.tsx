@@ -61,7 +61,7 @@ export default function Navbar() {
           {/* Logo */}
           <Link href="/" className="flex items-center space-x-2">
             <BookOpen className="h-6 w-6 text-primary" />
-            <span className="font-heading text-2xl font-bold">Bookverse</span>
+            <span className="font-heading text-2xl font-bold">BookElysium</span>
           </Link>
           
           {/* Desktop Navigation */}
